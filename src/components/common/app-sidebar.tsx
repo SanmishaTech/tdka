@@ -24,6 +24,7 @@ import { NavProjects } from "@/components/common/nav-projects";
 import { NavUser } from "@/components/common/nav-user";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { ThemeToggle } from "@/components/common/theme-toggle";
 // import { TeamSwitcher } from "@/components/common/team-switcher"
 import {
   Sidebar,
@@ -105,6 +106,39 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     navMain: [] as typeof initialData.roles.admin.projects,
   });
 
+  // Dark mode toggle state and handlers
+  const [isDarkMode, setIsDarkMode] = React.useState(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) {
+      return savedTheme === "dark";
+    }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
+
+  // Sync the HTML class with the current theme
+  React.useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDarkMode);
+  }, [isDarkMode]);
+
+  // Listen for system preference changes when user hasn't explicitly chosen a theme
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem("theme")) {
+        setIsDarkMode(e.matches);
+      }
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    localStorage.setItem("theme", newDarkMode ? "dark" : "light");
+  };
+
   React.useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -160,14 +194,10 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="flex items-center gap-2"
               href="#"
               >
-                <img src="/credisphere-logo.svg" alt="CrediSphere logo" className="h-6 w-6" />
+                <img src="/kabaddi-logo.svg" alt="Kabaddi Manager logo" className="h-6 w-6" />
                 <span className="text-base font-semibold">{appName}</span>
               </a>
-              <a
-              className="flex items-center gap-2"
-              href="/member/search">
-                
-               </a>
+              <ThemeToggle isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
               
              </div>
             </SidebarMenuButton>

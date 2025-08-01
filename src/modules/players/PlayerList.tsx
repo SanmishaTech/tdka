@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,9 +55,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, patch } from "@/services/apiService";
-// Import components from current directory
-import CreatePlayer from "./CreatePlayer";
-import EditPlayer from "./EditPlayer";
+
 
 const PlayerList = () => {
   const [page, setPage] = useState(1);
@@ -66,10 +65,9 @@ const PlayerList = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isSuspended, setIsSuspended] = useState<boolean | undefined>(undefined);
   const [aadharVerified, setAadharVerified] = useState<boolean | undefined>(undefined);
-  const [editPlayerId, setEditPlayerId] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch players
   const {
@@ -165,29 +163,7 @@ const PlayerList = () => {
 
   // Handle edit player
   const handleEdit = (id: string) => {
-    setEditPlayerId(id);
-    setIsEditDialogOpen(true);
-  };
-
-  // Handle dialog close
-  const handleCreateDialogClose = () => {
-    setIsCreateDialogOpen(false);
-  };
-
-  const handleEditDialogClose = () => {
-    setIsEditDialogOpen(false);
-    setEditPlayerId(null);
-  };
-
-  // Handle export to Excel
-  const handleExport = () => {
-    window.location.href = `/api/players?export=true&search=${search}${isSuspended !== undefined ? `&isSuspended=${isSuspended}` : ''}${aadharVerified !== undefined ? `&aadharVerified=${aadharVerified}` : ''}`;
-  };
-
-  // Format date of birth
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    navigate(`/players/edit/${id}`);
   };
 
   // Calculate age from date of birth
@@ -294,11 +270,11 @@ const PlayerList = () => {
 
             {/* Add Button */}
             <Button
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={() => navigate('/players/create')}
               size="sm"
             >
               <PlusCircle className="mr-2 h-4 w-4" />
-              Add
+              Add Player
             </Button>
           </div>
 
@@ -598,27 +574,8 @@ const PlayerList = () => {
         </CardContent>
       </Card>
 
-      {/* Create Player Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Player</DialogTitle>
-          </DialogHeader>
-          <CreatePlayer onSuccess={handleCreateDialogClose} />
-        </DialogContent>
-      </Dialog>
 
-      {/* Edit Player Dialog */}
-      {editPlayerId && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Player</DialogTitle>
-            </DialogHeader>
-            <EditPlayer playerId={editPlayerId} onSuccess={handleEditDialogClose} />
-          </DialogContent>
-        </Dialog>
-      )}
+
     </div>
   );
 };

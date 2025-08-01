@@ -20,11 +20,13 @@ import GroupList from "@/modules/group/GroupList";
 import ClubList from "@/modules/club/ClubList";
 import CompetitionList from "@/modules/competition/CompetitionList";
 import { PlayerList } from "@/modules/players";
+import CreatePlayer from "./modules/players/CreatePlayer";
+import EditPlayer from "./modules/players/EditPlayer";
 import Profile from "./modules/profile/EditAgency";
 import Dashboard from "./modules/Dashboard/dashboard";
 import Registerformat from "./modules/Register/register";
 
- import { Toaster } from "sonner";
+import { Toaster } from "sonner";
 import "./App.css";
 const App = () => {
     // Set to false to disable the background animation
@@ -109,6 +111,22 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <PlayerList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/players/create"
+              element={
+                <ProtectedRoute>
+                  <CreatePlayer />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/players/edit/:id"
+              element={
+                <ProtectedRoute>
+                  <EditPlayer />
                 </ProtectedRoute>
               }
             />

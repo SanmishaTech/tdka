@@ -45,8 +45,8 @@ const AuthLayout = () => {
 				{/* Cover Image Section */}
 				<div className='relative hidden lg:block'>
 					<img
-						src='https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1000&q=80'
-						alt='Modern office workspace'
+						src='https://images.pexels.com/photos/262524/pexels-photo-262524.jpeg?auto=compress&cs=tinysrgb&w=1000&h=600&fit=crop'
+						alt='Professional sports team in action'
 						className='absolute inset-0 h-full w-full object-cover'
 					/>
 					<div className='relative z-10 flex flex-col justify-end h-full p-12 text-white'>
@@ -56,7 +56,7 @@ const AuthLayout = () => {
 								Welcome to {appName}
 							</h2>
 							<p className='text-lg text-white/90 leading-relaxed'>
-								Streamline your workflow and boost productivity with our comprehensive management platform.
+								Manage your kabaddi teams, players, and tournaments with our comprehensive sport management platform.
 							</p>
 						</div>
 					</div>
