@@ -5,13 +5,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LoaderCircle, Check } from "lucide-react";
+import { LoaderCircle, Check, ArrowLeft } from "lucide-react";
 
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
   Form,
@@ -124,7 +125,7 @@ const extractErrorMessage = (error: any): string | undefined => {
   return error?.message;
 };
 
-type PlayerFormInputs = z.infer<typeof playerFormSchemaCreate>;
+type PlayerFormInputs = z.infer<typeof playerFormSchemaCreate> | z.infer<typeof playerFormSchemaEdit>;
 
 interface PlayerFormProps {
   mode: "create" | "edit";
@@ -321,11 +322,32 @@ const PlayerForm = ({
 
   return (
     <div className={className}>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
-          {/* Personal Information Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Personal Information</h3>
+      {/* Header with Back Button and Title */}
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleCancel}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <h1 className="text-2xl font-bold">
+          {mode === "create" ? "Create" : "Update"} Player
+        </h1>
+        <div className="w-16" /> {/* Spacer for center alignment */}
+      </div>
+
+      {/* Main Card */}
+      <Card>
+        <CardContent className="pt-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
+              {/* Personal Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Personal Information</h3>
             
             {/* Name Fields - First, Middle, Last in a row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -429,26 +451,6 @@ const PlayerForm = ({
               />
             </div>
 
-            {/* Address Field */}
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter address"
-                      {...field}
-                      disabled={isFormLoading}
-                      rows={3}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             {/* Mobile and Aadhar Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Mobile Field */}
@@ -496,13 +498,33 @@ const PlayerForm = ({
                 )}
               />
             </div>
+
+            {/* Address Field */}
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter address"
+                      {...field}
+                      disabled={isFormLoading}
+                      rows={3}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
 
 
           {/* Groups Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Groups</h3>
+            <h3 className="text-lg font-medium border-b pb-2">Groups</h3>
             
             {/* Groups Field - Multiselect */}
             <FormField
@@ -590,7 +612,7 @@ const PlayerForm = ({
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
@@ -606,7 +628,9 @@ const PlayerForm = ({
           </div>
         </form>
       </Form>
-    </div>
+    </CardContent>
+  </Card>
+</div>
   );
 };
 

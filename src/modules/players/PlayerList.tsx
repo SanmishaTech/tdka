@@ -367,13 +367,6 @@ const PlayerList = () => {
                       <TableCell className="font-mono text-xs">{player.uniqueIdNumber}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          {player.profileImage && (
-                            <img 
-                              src={`/uploads${player.profileImage}`} 
-                              alt={`${player.firstName} ${player.lastName}`} 
-                              className="w-8 h-8 rounded-full object-cover"
-                            />
-                          )}
                           <div>
                             <div>{player.firstName} {player.lastName}</div>
                             <div className="text-xs text-muted-foreground">{player.position || 'No position'}</div>

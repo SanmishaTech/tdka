@@ -25,6 +25,7 @@ import EditPlayer from "./modules/players/EditPlayer";
 import Profile from "./modules/profile/EditAgency";
 import Dashboard from "./modules/Dashboard/dashboard";
 import Registerformat from "./modules/Register/register";
+import Unauthorized from "./components/common/Unauthorized";
 
 import { Toaster } from "sonner";
 import "./App.css";
@@ -84,7 +85,7 @@ const App = () => {
             <Route
               path="/clubs"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['admin']}>
                   <ClubList />
                 </ProtectedRoute>
               }
@@ -92,7 +93,7 @@ const App = () => {
             <Route
               path="/groups"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['admin']}>
                   <GroupList />
                 </ProtectedRoute>
               }
@@ -100,7 +101,7 @@ const App = () => {
             <Route
               path="/competitions"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['admin']}>
                   <CompetitionList />
                 </ProtectedRoute>
               }
@@ -109,7 +110,7 @@ const App = () => {
             <Route
               path="/players"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['admin', 'clubadmin']}>
                   <PlayerList />
                 </ProtectedRoute>
               }
@@ -117,7 +118,7 @@ const App = () => {
             <Route
               path="/players/create"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['admin', 'clubadmin']}>
                   <CreatePlayer />
                 </ProtectedRoute>
               }
@@ -125,7 +126,7 @@ const App = () => {
             <Route
               path="/players/edit/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['admin', 'clubadmin']}>
                   <EditPlayer />
                 </ProtectedRoute>
               }
@@ -139,6 +140,9 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            
+            {/* Unauthorized access page */}
+            <Route path="/unauthorized" element={<Unauthorized />} />
            
           </Route>
         </Routes>
