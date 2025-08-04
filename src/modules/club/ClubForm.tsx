@@ -5,11 +5,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, ArrowLeft } from "lucide-react";
 
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -32,6 +33,25 @@ interface ClubData {
   address: string;
   mobile: string;
   email: string;
+  
+  // Chairman details
+  chairmanName?: string;
+  chairmanMobile?: string;
+  chairmanEmail?: string;
+  chairmanAadhar?: string;
+  
+  // Secretary details
+  secretaryName?: string;
+  secretaryMobile?: string;
+  secretaryEmail?: string;
+  secretaryAadhar?: string;
+  
+  // Treasurer details
+  treasurerName?: string;
+  treasurerMobile?: string;
+  treasurerEmail?: string;
+  treasurerAadhar?: string;
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -57,6 +77,51 @@ const clubFormSchemaBase = z.object({
     .email("Valid email is required")
     .max(255, "Email must not exceed 255 characters"),
   role: z.string().default("clubadmin"),
+  
+  // Chairman details (optional for backward compatibility)
+  chairmanName: z.string()
+    .max(255, "Chairman name must not exceed 255 characters")
+    .optional(),
+  chairmanMobile: z.string()
+    .max(20, "Chairman mobile must not exceed 20 characters")
+    .optional(),
+  chairmanEmail: z.string()
+    .email("Valid chairman email is required")
+    .max(255, "Chairman email must not exceed 255 characters")
+    .optional(),
+  chairmanAadhar: z.string()
+    .max(12, "Chairman aadhar must not exceed 12 characters")
+    .optional(),
+    
+  // Secretary details (optional for backward compatibility)
+  secretaryName: z.string()
+    .max(255, "Secretary name must not exceed 255 characters")
+    .optional(),
+  secretaryMobile: z.string()
+    .max(20, "Secretary mobile must not exceed 20 characters")
+    .optional(),
+  secretaryEmail: z.string()
+    .email("Valid secretary email is required")
+    .max(255, "Secretary email must not exceed 255 characters")
+    .optional(),
+  secretaryAadhar: z.string()
+    .max(12, "Secretary aadhar must not exceed 12 characters")
+    .optional(),
+    
+  // Treasurer details (optional for backward compatibility)
+  treasurerName: z.string()
+    .max(255, "Treasurer name must not exceed 255 characters")
+    .optional(),
+  treasurerMobile: z.string()
+    .max(20, "Treasurer mobile must not exceed 20 characters")
+    .optional(),
+  treasurerEmail: z.string()
+    .email("Valid treasurer email is required")
+    .max(255, "Treasurer email must not exceed 255 characters")
+    .optional(),
+  treasurerAadhar: z.string()
+    .max(12, "Treasurer aadhar must not exceed 12 characters")
+    .optional(),
 });
 
 const clubFormSchemaCreate = clubFormSchemaBase.extend({
@@ -106,14 +171,12 @@ interface ClubFormProps {
   mode: "create" | "edit";
   clubId?: string;
   onSuccess?: () => void;
-  className?: string;
 }
 
 const ClubForm = ({
   mode,
   clubId,
   onSuccess,
-  className,
 }: ClubFormProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -130,6 +193,24 @@ const ClubForm = ({
       email: "",
       password: "",
       role: "clubadmin", // Set default role for club users
+      
+      // Chairman details
+      chairmanName: "",
+      chairmanMobile: "",
+      chairmanEmail: "",
+      chairmanAadhar: "",
+      
+      // Secretary details
+      secretaryName: "",
+      secretaryMobile: "",
+      secretaryEmail: "",
+      secretaryAadhar: "",
+      
+      // Treasurer details
+      treasurerName: "",
+      treasurerMobile: "",
+      treasurerEmail: "",
+      treasurerAadhar: "",
     },
   });
 
@@ -162,6 +243,24 @@ const ClubForm = ({
         email: clubData.email,
         password: "",
         role: "clubadmin",
+        
+        // Chairman details
+        chairmanName: clubData.chairmanName || "",
+        chairmanMobile: clubData.chairmanMobile || "",
+        chairmanEmail: clubData.chairmanEmail || "",
+        chairmanAadhar: clubData.chairmanAadhar || "",
+        
+        // Secretary details
+        secretaryName: clubData.secretaryName || "",
+        secretaryMobile: clubData.secretaryMobile || "",
+        secretaryEmail: clubData.secretaryEmail || "",
+        secretaryAadhar: clubData.secretaryAadhar || "",
+        
+        // Treasurer details
+        treasurerName: clubData.treasurerName || "",
+        treasurerMobile: clubData.treasurerMobile || "",
+        treasurerEmail: clubData.treasurerEmail || "",
+        treasurerAadhar: clubData.treasurerAadhar || "",
       });
     }
   }, [clubData, mode, form]);
@@ -258,9 +357,29 @@ const ClubForm = ({
   const isFormLoading = isFetchingClub || createClubMutation.isPending || updateClubMutation.isPending;
 
   return (
-    <div className={className}>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
+    <div className="p-6">
+      {/* Header with Back Button and Title */}
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleCancel}
+          disabled={isFormLoading}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+        <h1 className="text-2xl font-bold flex-1 text-center">
+          {mode === "create" ? "Create" : "Edit"} Club
+        </h1>
+        <div className="w-16"></div> {/* Spacer to balance the layout */}
+      </div>
+
+      <Card>
+        <CardContent className="p-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {/* Club Name Field */}
           <FormField
             control={form.control}
@@ -405,23 +524,278 @@ const ClubForm = ({
             )}
           />
 
-          {/* Form Actions */}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={isFormLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isFormLoading}>
-              {isFormLoading && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? "Create" : "Update"} Club
-            </Button>
+          {/* Club Leadership Section */}
+          <div className="space-y-6">
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium mb-4">Club Leadership</h3>
+              
+              {/* Chairman Details */}
+              <div className="space-y-4">
+                <h4 className="text-md font-medium text-muted-foreground">Chairman Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="chairmanName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chairman Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter chairman name"
+                            {...field}
+                            disabled={isFormLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="chairmanMobile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chairman Mobile</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter chairman mobile"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={20}
+                            type="tel"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="chairmanEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chairman Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter chairman email"
+                            {...field}
+                            disabled={isFormLoading}
+                            type="email"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="chairmanAadhar"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chairman Aadhar Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter chairman aadhar number"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={12}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+              
+              {/* Secretary Details */}
+              <div className="space-y-4 mt-6">
+                <h4 className="text-md font-medium text-muted-foreground">Secretary Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="secretaryName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Secretary Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter secretary name"
+                            {...field}
+                            disabled={isFormLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="secretaryMobile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Secretary Mobile</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter secretary mobile"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={20}
+                            type="tel"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="secretaryEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Secretary Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter secretary email"
+                            {...field}
+                            disabled={isFormLoading}
+                            type="email"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="secretaryAadhar"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Secretary Aadhar Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter secretary aadhar number"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={12}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+              
+              {/* Treasurer Details */}
+              <div className="space-y-4 mt-6">
+                <h4 className="text-md font-medium text-muted-foreground">Treasurer Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="treasurerName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Treasurer Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter treasurer name"
+                            {...field}
+                            disabled={isFormLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="treasurerMobile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Treasurer Mobile</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter treasurer mobile"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={20}
+                            type="tel"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="treasurerEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Treasurer Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter treasurer email"
+                            {...field}
+                            disabled={isFormLoading}
+                            type="email"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="treasurerAadhar"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Treasurer Aadhar Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter treasurer aadhar number"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={12}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        </form>
-      </Form>
+
+              {/* Form Actions */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isFormLoading}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isFormLoading}>
+                  {isFormLoading && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                  {mode === "create" ? "Create" : "Update"} Club
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

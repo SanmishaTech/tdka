@@ -44,6 +44,7 @@ interface CompetitionData {
   maxPlayers: number;
   date: string;
   groups?: string[]; // Array of group IDs
+  clubs?: string[]; // Array of club IDs
   age?: string; // Legacy field, will be removed
   lastEntryDate: string;
   createdAt: string;
@@ -55,6 +56,12 @@ interface Group {
   groupName: string;
   gender: string;
   age: string;
+}
+
+interface Club {
+  id: number;
+  clubName: string;
+  city: string;
 }
 
 // Create schema for competition form
@@ -70,6 +77,8 @@ const competitionFormSchema = z.object({
     .max(255, "Date must not exceed 255 characters"),
   groups: z.array(z.string())
     .min(1, "At least one group must be selected"),
+  clubs: z.array(z.string())
+    .optional(),
   lastEntryDate: z.string()
     .min(1, "Last entry date is required")
     .max(255, "Last entry date must not exceed 255 characters"),
@@ -137,9 +146,10 @@ const CompetitionForm = ({
     resolver: zodResolver(competitionFormSchema),
     defaultValues: {
       competitionName: "",
-      maxPlayers: "",
-      date: "",
+      maxPlayers: 1,
+      date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
       groups: [],
+      clubs: [],
       lastEntryDate: "",
     },
   });
@@ -150,6 +160,16 @@ const CompetitionForm = ({
     queryFn: async (): Promise<Group[]> => {
       const response = await get("/groups");
       return response.groups || response;
+    },
+    refetchOnWindowFocus: false,
+  });
+
+  // Query to fetch all available clubs
+  const { data: clubsData, isLoading: isLoadingClubs } = useQuery({
+    queryKey: ["clubs"],
+    queryFn: async (): Promise<Club[]> => {
+      const response = await get("/clubs");
+      return response.clubs || response;
     },
     refetchOnWindowFocus: false,
   });
@@ -187,6 +207,13 @@ const CompetitionForm = ({
         console.log("Using legacy age field:", competitionData.age);
         // You might want to find matching groups by age or set an empty array
         form.setValue("groups", []);
+      }
+
+      // Handle clubs data
+      if (competitionData.clubs && competitionData.clubs.length > 0) {
+        form.setValue("clubs", competitionData.clubs);
+      } else {
+        form.setValue("clubs", []);
       }
 
       form.setValue("lastEntryDate", competitionData.lastEntryDate || "");
@@ -450,6 +477,92 @@ const CompetitionForm = ({
                                 <span>{group.groupName}</span>
                                 <span className="ml-auto text-xs text-muted-foreground">
                                   {group.gender}, {group.age}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Clubs Field - Multiselect */}
+          <FormField
+            control={form.control}
+            name="clubs"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Participating Clubs</FormLabel>
+                <div className="border rounded-md p-2">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {field.value && field.value.length > 0 ? (
+                      field.value.map((clubId) => {
+                        const club = clubsData?.find((c) => c.id.toString() === clubId);
+                        return (
+                          <Badge key={clubId} variant="secondary" className="text-xs">
+                            {club?.clubName || clubId}
+                            <button
+                              type="button"
+                              className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              onClick={() => {
+                                field.onChange(field.value?.filter((val) => val !== clubId) || []);
+                              }}
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        );
+                      })
+                    ) : (
+                      <div className="text-muted-foreground text-sm">No clubs selected</div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-2">
+                    <div className="text-sm font-medium mb-1">Available Clubs:</div>
+                    {isLoadingClubs ? (
+                      <div className="flex items-center justify-center p-2">
+                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                        <span className="ml-2">Loading clubs...</span>
+                      </div>
+                    ) : (
+                      <div className="max-h-[200px] overflow-y-auto" style={{ maxHeight: "calc(5 * 36px)", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                        {clubsData?.map((club) => {
+                          const clubId = club.id.toString();
+                          const isSelected = field.value?.includes(clubId) || false;
+                          return (
+                            <div
+                              key={club.id}
+                              className={cn(
+                                "flex items-center px-2 py-1.5 text-sm cursor-pointer rounded-sm",
+                                isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                              )}
+                              onClick={() => {
+                                // Toggle the selection
+                                const currentValues = [...(field.value || [])];
+                                const newValues = isSelected
+                                  ? currentValues.filter(id => id !== clubId)
+                                  : [...currentValues, clubId];
+
+                                // Update the form value directly
+                                field.onChange(newValues);
+                              }}
+                            >
+                              <div className="flex items-center gap-2 w-full">
+                                <div className={cn(
+                                  "w-4 h-4 border rounded flex items-center justify-center",
+                                  isSelected ? "bg-primary border-primary" : "border-input"
+                                )}>
+                                  {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                                </div>
+                                <span>{club.clubName}</span>
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  {club.city}
                                 </span>
                               </div>
                             </div>

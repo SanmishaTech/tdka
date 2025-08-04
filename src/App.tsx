@@ -18,6 +18,8 @@ import ProtectedRoute from "./components/common/protected-route"; // Correct pat
 import UserList from "@/modules/User/UserList";
 import GroupList from "@/modules/group/GroupList";
 import ClubList from "@/modules/club/ClubList";
+import CreateClub from "./modules/club/CreateClub";
+import EditClub from "./modules/club/EditClub";
 import CompetitionList from "@/modules/competition/CompetitionList";
 import { PlayerList } from "@/modules/players";
 import CreatePlayer from "./modules/players/CreatePlayer";
@@ -87,6 +89,22 @@ const App = () => {
               element={
                 <ProtectedRoute roles={['admin']}>
                   <ClubList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clubs/create"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <CreateClub />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clubs/edit/:id"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <EditClub />
                 </ProtectedRoute>
               }
             />

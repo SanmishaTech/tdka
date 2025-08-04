@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   LoaderCircle,
   PenSquare,
@@ -41,9 +35,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, del } from "@/services/apiService";
-// Import components from current directory
-import CreateClub from "./CreateClub";
-import EditClub from "./EditClub";
+// Remove unused imports since we're using navigation now
+// import CreateClub from "./CreateClub";
+// import EditClub from "./EditClub";
 
 const ClubList = () => {
   const [page, setPage] = useState(1);
@@ -51,10 +45,8 @@ const ClubList = () => {
   const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState("clubName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [editClubId, setEditClubId] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch clubs
   const {
@@ -74,8 +66,8 @@ const ClubList = () => {
       toast.success("Club deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["clubs"] });
     },
-    onError: (error: any) => {
-      toast.error(error.errors?.message || error.message || "Failed to delete club");
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete club");
     },
   });
 
@@ -109,20 +101,14 @@ const ClubList = () => {
     setPage(1); // Reset to first page when limit changes
   };
 
-  // Handle edit club
+  // Handle edit club - navigate to edit page
   const handleEdit = (id: string) => {
-    setEditClubId(id);
-    setIsEditDialogOpen(true);
+    navigate(`/clubs/edit/${id}`);
   };
 
-  // Handle dialog close
-  const handleCreateDialogClose = () => {
-    setIsCreateDialogOpen(false);
-  };
-
-  const handleEditDialogClose = () => {
-    setIsEditDialogOpen(false);
-    setEditClubId(null);
+  // Handle create club - navigate to create page
+  const handleCreate = () => {
+    navigate('/clubs/create');
   };
 
   // Handle error club
@@ -130,7 +116,7 @@ const ClubList = () => {
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Clubs</h2>
-        <p>{(error as any)?.message || "Failed to load clubs"}</p>
+        <p>{error instanceof Error ? error.message : "Failed to load clubs"}</p>
         <Button className="mt-4" onClick={() => queryClient.invalidateQueries({ queryKey: ["clubs"] })}>
           Try Again
         </Button>
@@ -167,7 +153,7 @@ const ClubList = () => {
 
             {/* Action Buttons */}
             <Button
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={handleCreate}
               size="sm"
             >
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -305,28 +291,6 @@ const ClubList = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Create Club Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Add New Club</DialogTitle>
-          </DialogHeader>
-          <CreateClub onSuccess={handleCreateDialogClose} />
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Club Dialog */}
-      {editClubId && (
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Edit Club</DialogTitle>
-            </DialogHeader>
-            <EditClub clubId={editClubId} onSuccess={handleEditDialogClose} />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 };
