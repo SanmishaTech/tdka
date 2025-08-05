@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LoaderCircle, Check, ChevronsUpDown } from "lucide-react";
+import { LoaderCircle, Check, ChevronsUpDown, ArrowLeft } from "lucide-react";
 
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Services and utilities
 import { post, put, get } from "@/services/apiService";
@@ -312,34 +313,60 @@ const CompetitionForm = ({
   const isFormLoading = isFetchingCompetition || createCompetitionMutation.isPending || updateCompetitionMutation.isPending;
 
   return (
-    <div className={className}>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
-          {/* Title and Date field at the top */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold">
-              {mode === "create" ? "Add New Competition" : "Edit Competition"}
-            </h2>
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem className="mb-0 flex items-center">
-                  <FormLabel className="mr-2 whitespace-nowrap">Date <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter date"
-                      {...field}
-                      disabled={isFormLoading}
-                      type="date"
-                      className="w-auto"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+    <div className={`p-6 ${className || ''}`}>
+      {/* Header Section */}
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCancel}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        
+        <h1 className="text-2xl font-bold text-center flex-1">
+          {mode === "create" ? "Create Competition" : "Update Competition"}
+        </h1>
+        
+        {/* Empty div for balance */}
+        <div className="w-20"></div>
+      </div>
+      
+      <Card className="border border-border">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold">
+            {mode === "create" ? "Add New Competition" : "Edit Competition"}
+          </CardTitle>
+          <CardDescription>
+            {mode === "create" ? "Create a new competition with groups and clubs" : "Update competition details"}
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
+              {/* Date Field at the top */}
+              <FormField
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter date"
+                        {...field}
+                        disabled={isFormLoading}
+                        type="date"
+                        className="w-auto"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
           {/* Competition Name and Last Entry Date Fields - Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Competition Name Field */}
@@ -594,8 +621,10 @@ const CompetitionForm = ({
           </div>
         </form>
       </Form>
-    </div>
-  );
+    </CardContent>
+  </Card>
+</div>
+);
 };
 
 export default CompetitionForm;

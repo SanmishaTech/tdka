@@ -46,17 +46,17 @@ const initialData = {
       projects: [
         {
           name: "Club",
-          url: "clubs",
+          url: "/clubs",
           icon: UsersRound,
         },
         {
           name: "Group",
-          url: "groups",
+          url: "/groups",
           icon: UsersRound,
         },
         {
           name: "Competition",
-          url: "competitions",
+          url: "/competitions",
           icon: UsersRound,
         },
       
@@ -67,7 +67,7 @@ const initialData = {
       
         {
           name: "Player",
-          url: "players",
+          url: "/players",
           icon: UsersRound,
         },
         

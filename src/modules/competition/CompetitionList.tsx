@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "@/components/ui/card";
 import {
   LoaderCircle,
   PenSquare,
@@ -25,7 +25,7 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
-  PlusCircle
+  PlusCircle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -40,9 +40,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, del } from "@/services/apiService";
-// Import components from current directory
-import CreateCompetition from "./CreateCompetition";
-import EditCompetition from "./EditCompetition";
 
 const CompetitionList = () => {
   const [page, setPage] = useState(1);
@@ -50,10 +47,8 @@ const CompetitionList = () => {
   const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState("competitionName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [editCompetitionId, setEditCompetitionId] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Fetch competitions
   const {
@@ -108,20 +103,14 @@ const CompetitionList = () => {
     setPage(1); // Reset to first page when limit changes
   };
 
-  // Handle edit competition
+  // Handle edit competition - navigate to edit page
   const handleEdit = (id: string) => {
-    setEditCompetitionId(id);
-    setIsEditDialogOpen(true);
+    navigate(`/competitions/edit/${id}`);
   };
 
-  // Handle dialog close
-  const handleCreateDialogClose = () => {
-    setIsCreateDialogOpen(false);
-  };
-
-  const handleEditDialogClose = () => {
-    setIsEditDialogOpen(false);
-    setEditCompetitionId(null);
+  // Handle create competition - navigate to create page
+  const handleCreate = () => {
+    navigate('/competitions/create');
   };
 
   // Format date for display
@@ -174,7 +163,7 @@ const CompetitionList = () => {
 
             {/* Action Buttons */}
             <Button
-              onClick={() => setIsCreateDialogOpen(true)}
+              onClick={handleCreate}
               size="sm"
             >
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -310,29 +299,6 @@ const CompetitionList = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Create Competition Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle></DialogTitle>
-          </DialogHeader>
-          <CreateCompetition onSuccess={handleCreateDialogClose} />
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Competition Dialog */}
-      {editCompetitionId && (
-
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle></DialogTitle>
-            </DialogHeader>
-            <EditCompetition competitionId={editCompetitionId} onSuccess={handleEditDialogClose} />
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 };
