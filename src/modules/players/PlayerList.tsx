@@ -389,7 +389,10 @@ const PlayerList = () => {
                             )}
                           </div>
                           <div>
-                            <div>{player.firstName} {player.lastName}</div>
+                            <div>
+                              {player.firstName} {player.lastName}
+                              {player.motherName ? ` (${player.motherName})` : ""}
+                            </div>
                             <div className="text-xs text-muted-foreground">{player.position || 'No position'}</div>
                           </div>
                         </div>

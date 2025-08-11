@@ -46,8 +46,8 @@ const groupFormSchema = z.object({
   groupName: z.string()
     .min(1, "Group name is required")
     .max(255, "Group name must not exceed 255 characters"),
-  gender: z.enum(["Male", "Female", "Mix"], {
-    errorMap: () => ({ message: "Gender must be Male, Female, or Mix" }),
+  gender: z.enum(["Men (A)", "Men (B)", "Women", "Boys", "Girls"], {
+    errorMap: () => ({ message: "Gender must be one of: Men (A), Men (B), Women, Boys, Girls" }),
   }),
   age: z.string()
     .min(1, "Age limit is required")
@@ -104,7 +104,7 @@ const GroupForm = ({
     resolver: zodResolver(groupFormSchema),
     defaultValues: {
       groupName: "",
-      gender: "Mix",
+      gender: undefined,
       age: "",
     },
   });
@@ -130,7 +130,10 @@ const GroupForm = ({
     if (groupData && mode === "edit") {
       console.log("Setting form values..."); // Debug log
       form.setValue("groupName", groupData.groupName || "");
-      form.setValue("gender", groupData.gender as "Male" | "Female" | "Mix" || "Mix");
+      const allowedGenders = ["Men (A)", "Men (B)", "Women", "Boys", "Girls"] as const;
+      if (groupData.gender && (allowedGenders as readonly string[]).includes(groupData.gender)) {
+        form.setValue("gender", groupData.gender as "Men (A)" | "Men (B)" | "Women" | "Boys" | "Girls");
+      }
       form.setValue("age", groupData.age || "");
     }
   }, [groupData, mode, form]);
@@ -259,7 +262,7 @@ const GroupForm = ({
                   <FormLabel>Gender <span className="text-red-500">*</span></FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    value={field.value}
+                    value={field.value || undefined}
                     disabled={isFormLoading}
                   >
                     <FormControl>
@@ -268,9 +271,11 @@ const GroupForm = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Mix">Mix</SelectItem>
+                      <SelectItem value="Men (A)">Men (A)</SelectItem>
+                      <SelectItem value="Men (B)">Men (B)</SelectItem>
+                      <SelectItem value="Women">Women</SelectItem>
+                      <SelectItem value="Boys">Boys</SelectItem>
+                      <SelectItem value="Girls">Girls</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

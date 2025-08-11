@@ -15,6 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
   Form,
   FormControl,
   FormField,
@@ -34,6 +41,7 @@ interface PlayerData {
   firstName: string;
   middleName?: string;
   lastName: string;
+  motherName?: string;
   profileImage?: string;
   dateOfBirth: string;
   position?: string;
@@ -75,6 +83,12 @@ const playerFormSchemaBase = z.object({
     .refine(val => /^[A-Za-z\s\u0900-\u097F]+$/.test(val), {
       message: "Last name can only contain letters",
     }),
+  motherName: z.string()
+    .max(100, "Mother name must not exceed 100 characters")
+    .refine(val => !val || /^[A-Za-z\s\u0900-\u097F]+$/.test(val), {
+      message: "Mother name can only contain letters",
+    })
+    .optional(),
   dateOfBirth: z.string()
     .min(1, "Date of birth is required"),
   position: z.string()
@@ -84,7 +98,7 @@ const playerFormSchemaBase = z.object({
     .min(1, "Address is required"),
   mobile: z.string()
     .min(10, "Mobile number must be at least 10 digits")
-    .max(15, "Mobile number must not exceed 15 digits")
+    .max(10, "Mobile number must not exceed 10 digits")
     .refine(val => /^\d+$/.test(val), {
       message: "Mobile number can only contain digits",
     }),
@@ -155,6 +169,7 @@ const PlayerForm = ({
       firstName: "",
       middleName: "",
       lastName: "",
+      motherName: "",
       dateOfBirth: "",
       position: "",
       address: "",
@@ -193,6 +208,7 @@ const PlayerForm = ({
       form.setValue("firstName", playerData.firstName || "");
       form.setValue("middleName", playerData.middleName || "");
       form.setValue("lastName", playerData.lastName || "");
+      form.setValue("motherName", playerData.motherName || "");
       form.setValue("dateOfBirth", playerData.dateOfBirth.split('T')[0] || "");
       form.setValue("position", playerData.position || "");
       form.setValue("address", playerData.address || "");
@@ -269,6 +285,7 @@ const PlayerForm = ({
         formData.append('firstName', data.firstName);
         formData.append('middleName', data.middleName || '');
         formData.append('lastName', data.lastName);
+        formData.append('motherName', data.motherName || '');
         formData.append('dateOfBirth', data.dateOfBirth);
         formData.append('position', data.position || '');
         formData.append('address', data.address);
@@ -284,6 +301,7 @@ const PlayerForm = ({
           firstName: data.firstName,
           middleName: data.middleName || null,
           lastName: data.lastName,
+          motherName: data.motherName || null,
           dateOfBirth: data.dateOfBirth,
           position: data.position || null,
           address: data.address,
@@ -328,6 +346,7 @@ const PlayerForm = ({
         formData.append('firstName', data.firstName);
         formData.append('middleName', data.middleName || '');
         formData.append('lastName', data.lastName);
+        formData.append('motherName', data.motherName || '');
         formData.append('dateOfBirth', data.dateOfBirth);
         formData.append('position', data.position || '');
         formData.append('address', data.address);
@@ -349,6 +368,7 @@ const PlayerForm = ({
           firstName: data.firstName,
           middleName: data.middleName || null,
           lastName: data.lastName,
+          motherName: data.motherName || null,
           dateOfBirth: data.dateOfBirth,
           position: data.position || null,
           address: data.address,
@@ -562,7 +582,7 @@ const PlayerForm = ({
 
               {/* Personal Information Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium border-b pb-2">Personal Information</h3>
+                <h3 className="text-lg font-medium border-b pb-2">Personal Information (As per Aadhar)</h3>
             
             {/* Name Fields - First, Middle, Last in a row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -624,6 +644,25 @@ const PlayerForm = ({
               />
             </div>
 
+            {/* Mother Name Field */}
+            <FormField
+              control={form.control}
+              name="motherName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mother Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter mother name"
+                      {...field}
+                      disabled={isFormLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Date of Birth and Position Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Date of Birth Field */}
@@ -652,14 +691,27 @@ const PlayerForm = ({
                 name="position"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Position</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter position"
-                        {...field}
-                        disabled={isFormLoading}
-                      />
-                    </FormControl>
+                    <FormLabel>Playing Position</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={isFormLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Playing Position" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Left Corner">Left Corner</SelectItem>
+                        <SelectItem value="Right Corner">Right Corner</SelectItem>
+                        <SelectItem value="Left Turn">Left Turn</SelectItem>
+                        <SelectItem value="Right Turn">Right Turn</SelectItem>
+                        <SelectItem value="Left Raider">Left Raider</SelectItem>
+                        <SelectItem value="Right Raider">Right Raider</SelectItem>
+                        <SelectItem value="All Rounder">All Rounder</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -680,7 +732,7 @@ const PlayerForm = ({
                         placeholder="Enter mobile number"
                         {...field}
                         disabled={isFormLoading}
-                        maxLength={15}
+                        maxLength={10}
                         type="tel"
                       />
                     </FormControl>
@@ -720,7 +772,7 @@ const PlayerForm = ({
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Address (As per Aadhar) <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Enter address"
