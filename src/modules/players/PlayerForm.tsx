@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LoaderCircle, Check, ArrowLeft } from "lucide-react";
+import { LoaderCircle, Check, ArrowLeft, Upload, X } from "lucide-react";
 
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
@@ -143,6 +143,11 @@ const PlayerForm = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Profile image state
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  const [existingProfileImage, setExistingProfileImage] = useState<string | null>(null);
+
   // Initialize form with Shadcn Form
   const form = useForm<PlayerFormInputs>({
     resolver: zodResolver(mode === "create" ? playerFormSchemaCreate : playerFormSchemaEdit),
@@ -198,6 +203,46 @@ const PlayerForm = ({
       if (playerData.groups && playerData.groups.length > 0) {
         form.setValue("groupIds", playerData.groups.map(group => group.id.toString()));
       }
+
+      // Set existing profile image
+      if (playerData.profileImage) {
+        // In development, use the proxy (/uploads will be proxied to backend)
+        // In production, use the full backend URL
+        const isDevelopment = import.meta.env.DEV;
+        const imageUrl = isDevelopment 
+          ? `/${playerData.profileImage}` // Use proxy in development
+          : `${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/${playerData.profileImage}`; // Direct URL in production
+        
+        console.log('Setting up profile image:');
+        console.log('- Database path:', playerData.profileImage);
+        console.log('- Development mode:', isDevelopment);
+        console.log('- Final URL:', imageUrl);
+        
+        setExistingProfileImage(imageUrl);
+        setProfileImagePreview(imageUrl);
+        
+        // Test if the image exists by creating a test image
+        const testImg = new Image();
+        testImg.onload = () => {
+          console.log('✅ Image exists and is accessible:', imageUrl);
+        };
+        testImg.onerror = () => {
+          console.error('❌ Image failed to load:', imageUrl);
+          console.log('Trying to fetch the URL directly...');
+          fetch(imageUrl)
+            .then(response => {
+              console.log('Fetch response status:', response.status);
+              console.log('Fetch response headers:', response.headers);
+              if (!response.ok) {
+                console.error('Fetch failed with status:', response.status);
+              }
+            })
+            .catch(error => {
+              console.error('Fetch error:', error);
+            });
+        };
+        testImg.src = imageUrl;
+      }
     }
   }, [playerData, mode, form]);
 
@@ -217,21 +262,38 @@ const PlayerForm = ({
 
   // Mutation for creating a player
   const createPlayerMutation = useMutation({
-    mutationFn: (data: PlayerFormInputs) => {
-      // Create JSON payload
-      const payload = {
-        firstName: data.firstName,
-        middleName: data.middleName || null,
-        lastName: data.lastName,
-        dateOfBirth: data.dateOfBirth,
-        position: data.position || null,
-        address: data.address,
-        mobile: data.mobile,
-        aadharNumber: data.aadharNumber,
-        groupIds: data.groupIds.map(id => parseInt(id))
-      };
-      
-      return post("/players", payload);
+    mutationFn: async (data: PlayerFormInputs) => {
+      if (profileImageFile) {
+        // If there's a profile image file, use FormData to upload
+        const formData = new FormData();
+        formData.append('firstName', data.firstName);
+        formData.append('middleName', data.middleName || '');
+        formData.append('lastName', data.lastName);
+        formData.append('dateOfBirth', data.dateOfBirth);
+        formData.append('position', data.position || '');
+        formData.append('address', data.address);
+        formData.append('mobile', data.mobile);
+        formData.append('aadharNumber', data.aadharNumber!);
+        formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
+        formData.append('profileImage', profileImageFile);
+        
+        return postupload("/players", formData);
+      } else {
+        // No profile image, use regular JSON payload
+        const payload = {
+          firstName: data.firstName,
+          middleName: data.middleName || null,
+          lastName: data.lastName,
+          dateOfBirth: data.dateOfBirth,
+          position: data.position || null,
+          address: data.address,
+          mobile: data.mobile,
+          aadharNumber: data.aadharNumber,
+          groupIds: data.groupIds.map(id => parseInt(id))
+        };
+        
+        return post("/players", payload);
+      }
     },
     onSuccess: () => {
       toast.success("Player created successfully");
@@ -259,21 +321,44 @@ const PlayerForm = ({
 
   // Mutation for updating a player
   const updatePlayerMutation = useMutation({
-    mutationFn: (data: PlayerFormInputs) => {
-      // Create JSON payload
-      const payload = {
-        firstName: data.firstName,
-        middleName: data.middleName || null,
-        lastName: data.lastName,
-        dateOfBirth: data.dateOfBirth,
-        position: data.position || null,
-        address: data.address,
-        mobile: data.mobile,
-        aadharNumber: data.aadharNumber || null,
-        groupIds: data.groupIds.map(id => parseInt(id))
-      };
-      
-      return put(`/players/${playerId}`, payload);
+    mutationFn: async (data: PlayerFormInputs) => {
+      if (profileImageFile || shouldRemoveImage) {
+        // If there's a new profile image file or image should be removed, use FormData
+        const formData = new FormData();
+        formData.append('firstName', data.firstName);
+        formData.append('middleName', data.middleName || '');
+        formData.append('lastName', data.lastName);
+        formData.append('dateOfBirth', data.dateOfBirth);
+        formData.append('position', data.position || '');
+        formData.append('address', data.address);
+        formData.append('mobile', data.mobile);
+        formData.append('aadharNumber', data.aadharNumber || '');
+        formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
+        
+        if (profileImageFile) {
+          formData.append('profileImage', profileImageFile);
+        } else if (shouldRemoveImage) {
+          // Send removeImage flag to indicate image should be removed
+          formData.append('removeImage', 'true');
+        }
+        
+        return putupload(`/players/${playerId}`, formData);
+      } else {
+        // No image changes, use regular JSON payload
+        const payload = {
+          firstName: data.firstName,
+          middleName: data.middleName || null,
+          lastName: data.lastName,
+          dateOfBirth: data.dateOfBirth,
+          position: data.position || null,
+          address: data.address,
+          mobile: data.mobile,
+          aadharNumber: data.aadharNumber || null,
+          groupIds: data.groupIds.map(id => parseInt(id))
+        };
+        
+        return put(`/players/${playerId}`, payload);
+      }
     },
     onSuccess: () => {
       toast.success("Player updated successfully");
@@ -299,6 +384,45 @@ const PlayerForm = ({
       }
     },
   });
+
+  // Track if image should be removed
+  const [shouldRemoveImage, setShouldRemoveImage] = useState<boolean>(false);
+
+  // Handle profile image removal
+  const handleRemoveImage = () => {
+    setProfileImagePreview(null);
+    setProfileImageFile(null);
+    setExistingProfileImage(null);
+    setShouldRemoveImage(true); // Mark for removal
+  };
+
+  // Handle profile image file selection
+  const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Image size must be less than 2MB');
+        return;
+      }
+      
+      setProfileImageFile(file);
+      setShouldRemoveImage(false); // Reset removal flag when new file is selected
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Handle form submission
   const onSubmit = (data: PlayerFormInputs) => {
@@ -345,6 +469,94 @@ const PlayerForm = ({
         <CardContent className="pt-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
+              {/* Profile Image Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Profile Image</h3>
+                
+                {/* Profile Image Display */}
+                <div className="flex items-center gap-4">
+                  {profileImagePreview && (
+                    <div className="relative">
+                      <img 
+                        src={profileImagePreview} 
+                        alt="Profile Preview" 
+                        className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          console.log('Image failed to load:', profileImagePreview);
+                          target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"%3E%3C/path%3E%3Ccircle cx="12" cy="7" r="4"%3E%3C/circle%3E%3C/svg%3E';
+                        }}
+                        onLoad={() => {
+                          console.log('Image loaded successfully:', profileImagePreview);
+                        }}
+                      />
+                      
+                      <div className="mt-2 text-sm text-center">
+                        {mode === "edit" ? "Current Image" : "Preview"}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!profileImagePreview && (
+                    <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx={12} cy={7} r={4} />
+                      </svg>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-col gap-2">
+                    <div className="text-sm text-muted-foreground">
+                      {mode === "edit" ? "Update profile image" : "Add profile image"} (optional)
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Supported formats: JPEG, PNG (Max 2MB)
+                    </div>
+                    
+                    {/* Image Upload Controls */}
+                    <div className="flex gap-2 mt-2">
+                      <label>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          className="cursor-pointer"
+                          disabled={isFormLoading}
+                          asChild
+                        >
+                          <span>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Choose Image
+                          </span>
+                        </Button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFileSelect}
+                          className="sr-only"
+                          disabled={isFormLoading}
+                        />
+                      </label>
+                      
+                      {profileImagePreview && (
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleRemoveImage}
+                          disabled={isFormLoading}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4 mr-2" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Personal Information Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium border-b pb-2">Personal Information</h3>
@@ -519,8 +731,6 @@ const PlayerForm = ({
               )}
             />
           </div>
-
-
 
           {/* Groups Section */}
           <div className="space-y-4">
