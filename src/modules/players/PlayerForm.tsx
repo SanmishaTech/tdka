@@ -508,10 +508,13 @@ const PlayerForm = ({
                   
                   <div className="flex flex-col gap-2">
                     <div className="text-sm text-muted-foreground">
-                      {mode === "edit" ? "Update profile image" : "Add profile image"} (optional)
+                      {mode === "edit" ? "Update passport size image" : "Add passport size image"} (optional)
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Supported formats: JPEG, PNG (Max 2MB)
+                      Supported formats: JPEG, PNG
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Supported size: Passport size (2×2 inches, Max 2MB)
                     </div>
                     
                     {/* Image Upload Controls */}
