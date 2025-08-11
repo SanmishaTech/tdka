@@ -55,6 +55,16 @@ const initialData = {
           icon: UsersRound,
         },
         {
+          name: "Taluka",
+          url: "/talukas",
+          icon: Map,
+        },
+        {
+          name: "Region",
+          url: "/regions",
+          icon: Map,
+        },
+        {
           name: "Competition",
           url: "/competitions",
           icon: UsersRound,

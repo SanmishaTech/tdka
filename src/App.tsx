@@ -17,6 +17,8 @@ import ResetPassword from "./modules/Auth/ResetPassword";
 import ProtectedRoute from "./components/common/protected-route"; // Correct path
 import UserList from "@/modules/User/UserList";
 import GroupList from "@/modules/group/GroupList";
+import { TalukaList, CreateTaluka, EditTaluka } from "@/modules/taluka";
+import { RegionList, CreateRegion, EditRegion } from "@/modules/region";
 import ClubList from "@/modules/club/ClubList";
 import CreateClub from "./modules/club/CreateClub";
 import EditClub from "./modules/club/EditClub";
@@ -115,6 +117,54 @@ const App = () => {
               element={
                 <ProtectedRoute roles={['admin']}>
                   <GroupList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/talukas"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <TalukaList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/talukas/create"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <CreateTaluka />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/talukas/edit/:id"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <EditTaluka />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/regions"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <RegionList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/regions/create"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <CreateRegion />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/regions/edit/:id"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <EditRegion />
                 </ProtectedRoute>
               }
             />
