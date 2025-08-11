@@ -19,16 +19,40 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Services and utilities
 import { post, put, get } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
 
 // Define interfaces for API responses
+interface Taluka {
+  id: number;
+  number: number;
+  abbreviation: string;
+  talukaName: string;
+}
+
+interface Region {
+  id: number;
+  number: number;
+  abbreviation: string;
+  regionName: string;
+  taluka: Taluka;
+}
+
 interface ClubData {
   id: number;
   clubName: string;
   affiliationNumber: string;
+  uniqueNumber?: string;
+  regionId?: number;
   city: string;
   address: string;
   mobile: string;
@@ -64,6 +88,8 @@ const clubFormSchemaBase = z.object({
   affiliationNumber: z.string()
     .min(1, "Affiliation number is required")
     .max(255, "Affiliation number must not exceed 255 characters"),
+  regionId: z.number()
+    .min(1, "Please select a region"),
   city: z.string()
     .min(1, "City is required")
     .max(255, "City must not exceed 255 characters"),
@@ -187,6 +213,7 @@ const ClubForm = ({
     defaultValues: {
       clubName: "",
       affiliationNumber: "",
+      regionId: undefined,
       city: "",
       address: "",
       mobile: "",
@@ -214,6 +241,16 @@ const ClubForm = ({
     },
   });
 
+  // Query for fetching regions for dropdown
+  const { data: regions, isLoading: isLoadingRegions } = useQuery<Region[]>({
+    queryKey: ["regions-dropdown"],
+    queryFn: async () => {
+      const response = await get("/clubs/regions");
+      return response;
+    },
+    refetchOnWindowFocus: false,
+  });
+
   // Query for fetching club data in edit mode
   const { data: clubData, isLoading: isFetchingClub, error: fetchError } = useQuery({
     queryKey: ["club", clubId],
@@ -237,6 +274,7 @@ const ClubForm = ({
       form.reset({
         clubName: clubData.clubName,
         affiliationNumber: clubData.affiliationNumber,
+        regionId: clubData.regionId,
         city: clubData.city,
         address: clubData.address,
         mobile: clubData.mobile,
@@ -399,24 +437,65 @@ const ClubForm = ({
             )}
           />
 
-          {/* Affiliation Number Field */}
-          <FormField
-            control={form.control}
-            name="affiliationNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Affiliation Number <span className="text-red-500">*</span></FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Enter affiliation number"
-                    {...field}
-                    disabled={isFormLoading}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Affiliation Number and Region - Two Column Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Affiliation Number Field */}
+            <FormField
+              control={form.control}
+              name="affiliationNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Affiliation Number <span className="text-red-500">*</span></FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter affiliation number"
+                      {...field}
+                      disabled={isFormLoading}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Region Dropdown Field */}
+            <FormField
+              control={form.control}
+              name="regionId"
+              render={({ field }) => {
+                const selectedRegion = regions?.find(r => r.id === field.value);
+                return (
+                  <FormItem>
+                    <FormLabel>Region <span className="text-red-500">*</span></FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      value={field.value?.toString()}
+                      disabled={isFormLoading || isLoadingRegions}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a region" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {regions?.map((region) => (
+                          <SelectItem key={region.id} value={region.id.toString()}>
+                            {region.regionName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedRegion && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Taluka: {selectedRegion.taluka.talukaName}
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+          </div>
 
           {/* City Field */}
           <FormField

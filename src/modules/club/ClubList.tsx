@@ -168,6 +168,7 @@ const ClubList = () => {
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead>Affiliation Number</TableHead>
+                  <TableHead>Unique Number</TableHead>
                   <TableHead>Club Name</TableHead>
 
                   <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("clubName")}>
@@ -186,14 +187,14 @@ const ClubList = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading clubs...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.clubs?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       No clubs found.
                     </TableCell>
                   </TableRow>
@@ -201,6 +202,7 @@ const ClubList = () => {
                   data?.clubs?.map((club: any) => (
                     <TableRow key={club.id}>
                       <TableCell>{club.affiliationNumber}</TableCell>
+                      <TableCell>{club.uniqueNumber || '-'}</TableCell>
                       <TableCell>{club.clubName}</TableCell>
                       <TableCell>{club.city}</TableCell>
                       <TableCell>{club.mobile}</TableCell>
