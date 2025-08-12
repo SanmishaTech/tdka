@@ -641,7 +641,7 @@ const ClubForm = ({
                             placeholder="Enter president mobile"
                             {...field}
                             disabled={isFormLoading}
-                            maxLength={20}
+                            maxLength={10}
                             type="tel"
                           />
                         </FormControl>
@@ -723,7 +723,7 @@ const ClubForm = ({
                             placeholder="Enter secretary mobile"
                             {...field}
                             disabled={isFormLoading}
-                            maxLength={20}
+                            maxLength={10}
                             type="tel"
                           />
                         </FormControl>
@@ -805,7 +805,7 @@ const ClubForm = ({
                             placeholder="Enter treasurer mobile"
                             {...field}
                             disabled={isFormLoading}
-                            maxLength={20}
+                            maxLength={10}
                             type="tel"
                           />
                         </FormControl>

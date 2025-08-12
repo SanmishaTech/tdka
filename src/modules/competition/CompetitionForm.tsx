@@ -43,7 +43,8 @@ interface CompetitionData {
   id: number;
   competitionName: string;
   maxPlayers: number;
-  date: string;
+  fromDate: string;
+  toDate: string;
   groups?: string[]; // Array of group IDs
   clubs?: string[]; // Array of club IDs
   age?: string; // Legacy field, will be removed
@@ -73,9 +74,12 @@ const competitionFormSchema = z.object({
   maxPlayers: z.number()
     .min(1, "Max players must be at least 1")
     .max(1000, "Max players cannot exceed 1000"),
-  date: z.string()
-    .min(1, "Date is required")
-    .max(255, "Date must not exceed 255 characters"),
+  fromDate: z.string()
+    .min(1, "From date is required")
+    .max(255, "From date must not exceed 255 characters"),
+  toDate: z.string()
+    .min(1, "To date is required")
+    .max(255, "To date must not exceed 255 characters"),
   groups: z.array(z.string())
     .min(1, "At least one group must be selected"),
   clubs: z.array(z.string())
@@ -148,7 +152,8 @@ const CompetitionForm = ({
     defaultValues: {
       competitionName: "",
       maxPlayers: 1,
-      date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+      fromDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+      toDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
       groups: [],
       clubs: [],
       lastEntryDate: "",
@@ -197,7 +202,8 @@ const CompetitionForm = ({
       console.log("Setting form values..."); // Debug log
       form.setValue("competitionName", competitionData.competitionName || "");
       form.setValue("maxPlayers", competitionData.maxPlayers || 1);
-      form.setValue("date", competitionData.date || "");
+      form.setValue("fromDate", competitionData.fromDate || "");
+      form.setValue("toDate", competitionData.toDate || "");
 
       // Handle groups data - if groups exist use them, otherwise try to convert age to group
       if (competitionData.groups && competitionData.groups.length > 0) {
@@ -347,26 +353,48 @@ const CompetitionForm = ({
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
-              {/* Date Field at the top */}
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter date"
-                        {...field}
-                        disabled={isFormLoading}
-                        type="date"
-                        className="w-auto"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Date Fields - Side by Side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* From Date Field */}
+                <FormField
+                  control={form.control}
+                  name="fromDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>From Date <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter from date"
+                          {...field}
+                          disabled={isFormLoading}
+                          type="date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* To Date Field */}
+                <FormField
+                  control={form.control}
+                  name="toDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>To Date <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter to date"
+                          {...field}
+                          disabled={isFormLoading}
+                          type="date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
           {/* Competition Name and Last Entry Date Fields - Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Competition Name Field */}

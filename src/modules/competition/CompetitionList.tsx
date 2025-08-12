@@ -185,7 +185,8 @@ const CompetitionList = () => {
                     )}
                   </TableHead>
                   <TableHead>Max Players</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>From Date</TableHead>
+                  <TableHead>To Date</TableHead>
                   <TableHead>Age</TableHead>
                   <TableHead>Last Entry Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -194,14 +195,14 @@ const CompetitionList = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading competitions...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.competitions?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       No competitions found.
                     </TableCell>
                   </TableRow>
@@ -210,7 +211,8 @@ const CompetitionList = () => {
                     <TableRow key={competition.id}>
                       <TableCell>{competition.competitionName}</TableCell>
                       <TableCell>{competition.maxPlayers}</TableCell>
-                      <TableCell>{formatDate(competition.date)}</TableCell>
+                      <TableCell>{formatDate(competition.fromDate)}</TableCell>
+                      <TableCell>{formatDate(competition.toDate)}</TableCell>
                       <TableCell>{competition.age}</TableCell>
                       <TableCell>{formatDate(competition.lastEntryDate)}</TableCell>
                       <TableCell className="text-right">

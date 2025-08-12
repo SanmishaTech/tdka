@@ -45,16 +45,6 @@ const initialData = {
     admin: {
       projects: [
         {
-          name: "Club",
-          url: "/clubs",
-          icon: UsersRound,
-        },
-        {
-          name: "Group",
-          url: "/groups",
-          icon: UsersRound,
-        },
-        {
           name: "Taluka",
           url: "/talukas",
           icon: Map,
@@ -64,6 +54,17 @@ const initialData = {
           url: "/regions",
           icon: Map,
         },
+        {
+          name: "Club",
+          url: "/clubs",
+          icon: UsersRound,
+        },
+        {
+          name: "Group",
+          url: "/groups",
+          icon: UsersRound,
+        },
+      
         {
           name: "Competition",
           url: "/competitions",
