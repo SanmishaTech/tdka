@@ -58,11 +58,11 @@ interface ClubData {
   mobile: string;
   email: string;
   
-  // Chairman details
-  chairmanName?: string;
-  chairmanMobile?: string;
-  chairmanEmail?: string;
-  chairmanAadhar?: string;
+  // President details
+  presidentName?: string;
+  presidentMobile?: string;
+  presidentEmail?: string;
+  presidentAadhar?: string;
   
   // Secretary details
   secretaryName?: string;
@@ -104,50 +104,50 @@ const clubFormSchemaBase = z.object({
     .max(255, "Email must not exceed 255 characters"),
   role: z.string().default("clubadmin"),
   
-  // Chairman details (optional for backward compatibility)
-  chairmanName: z.string()
-    .max(255, "Chairman name must not exceed 255 characters")
-    .optional(),
-  chairmanMobile: z.string()
-    .max(20, "Chairman mobile must not exceed 20 characters")
-    .optional(),
-  chairmanEmail: z.string()
-    .email("Valid chairman email is required")
-    .max(255, "Chairman email must not exceed 255 characters")
-    .optional(),
-  chairmanAadhar: z.string()
-    .max(12, "Chairman aadhar must not exceed 12 characters")
-    .optional(),
+  // President details (all fields mandatory)
+  presidentName: z.string()
+    .min(1, "President name is required")
+    .max(255, "President name must not exceed 255 characters"),
+  presidentMobile: z.string()
+    .min(1, "President mobile is required")
+    .max(20, "President mobile must not exceed 20 characters"),
+  presidentEmail: z.string()
+    .min(1, "President email is required")
+    .email("Valid president email is required")
+    .max(255, "President email must not exceed 255 characters"),
+  presidentAadhar: z.string()
+    .min(1, "President aadhar is required")
+    .max(12, "President aadhar must not exceed 12 characters"),
     
-  // Secretary details (optional for backward compatibility)
+  // Secretary details (all fields mandatory)
   secretaryName: z.string()
-    .max(255, "Secretary name must not exceed 255 characters")
-    .optional(),
+    .min(1, "Secretary name is required")
+    .max(255, "Secretary name must not exceed 255 characters"),
   secretaryMobile: z.string()
-    .max(20, "Secretary mobile must not exceed 20 characters")
-    .optional(),
+    .min(1, "Secretary mobile is required")
+    .max(20, "Secretary mobile must not exceed 20 characters"),
   secretaryEmail: z.string()
+    .min(1, "Secretary email is required")
     .email("Valid secretary email is required")
-    .max(255, "Secretary email must not exceed 255 characters")
-    .optional(),
+    .max(255, "Secretary email must not exceed 255 characters"),
   secretaryAadhar: z.string()
-    .max(12, "Secretary aadhar must not exceed 12 characters")
-    .optional(),
+    .min(1, "Secretary aadhar is required")
+    .max(12, "Secretary aadhar must not exceed 12 characters"),
     
-  // Treasurer details (optional for backward compatibility)
+  // Treasurer details (all fields mandatory)
   treasurerName: z.string()
-    .max(255, "Treasurer name must not exceed 255 characters")
-    .optional(),
+    .min(1, "Treasurer name is required")
+    .max(255, "Treasurer name must not exceed 255 characters"),
   treasurerMobile: z.string()
-    .max(20, "Treasurer mobile must not exceed 20 characters")
-    .optional(),
+    .min(1, "Treasurer mobile is required")
+    .max(20, "Treasurer mobile must not exceed 20 characters"),
   treasurerEmail: z.string()
+    .min(1, "Treasurer email is required")
     .email("Valid treasurer email is required")
-    .max(255, "Treasurer email must not exceed 255 characters")
-    .optional(),
+    .max(255, "Treasurer email must not exceed 255 characters"),
   treasurerAadhar: z.string()
-    .max(12, "Treasurer aadhar must not exceed 12 characters")
-    .optional(),
+    .min(1, "Treasurer aadhar is required")
+    .max(12, "Treasurer aadhar must not exceed 12 characters"),
 });
 
 const clubFormSchemaCreate = clubFormSchemaBase.extend({
@@ -221,11 +221,11 @@ const ClubForm = ({
       password: "",
       role: "clubadmin", // Set default role for club users
       
-      // Chairman details
-      chairmanName: "",
-      chairmanMobile: "",
-      chairmanEmail: "",
-      chairmanAadhar: "",
+      // President details
+      presidentName: "",
+      presidentMobile: "",
+      presidentEmail: "",
+      presidentAadhar: "",
       
       // Secretary details
       secretaryName: "",
@@ -282,11 +282,11 @@ const ClubForm = ({
         password: "",
         role: "clubadmin",
         
-        // Chairman details
-        chairmanName: clubData.chairmanName || "",
-        chairmanMobile: clubData.chairmanMobile || "",
-        chairmanEmail: clubData.chairmanEmail || "",
-        chairmanAadhar: clubData.chairmanAadhar || "",
+        // President details
+        presidentName: clubData.presidentName || "",
+        presidentMobile: clubData.presidentMobile || "",
+        presidentEmail: clubData.presidentEmail || "",
+        presidentAadhar: clubData.presidentAadhar || "",
         
         // Secretary details
         secretaryName: clubData.secretaryName || "",
@@ -608,19 +608,19 @@ const ClubForm = ({
             <div className="border-t pt-6">
               <h3 className="text-lg font-medium mb-4">Club Leadership</h3>
               
-              {/* Chairman Details */}
+              {/* President Details */}
               <div className="space-y-4">
-                <h4 className="text-md font-medium text-muted-foreground">Chairman Details</h4>
+                <h4 className="text-md font-medium text-muted-foreground">President Details</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="chairmanName"
+                    name="presidentName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Chairman Name</FormLabel>
+                        <FormLabel>President Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter chairman name"
+                            placeholder="Enter president name"
                             {...field}
                             disabled={isFormLoading}
                           />
@@ -632,13 +632,13 @@ const ClubForm = ({
                   
                   <FormField
                     control={form.control}
-                    name="chairmanMobile"
+                    name="presidentMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Chairman Mobile</FormLabel>
+                        <FormLabel>President Mobile <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter chairman mobile"
+                            placeholder="Enter president mobile"
                             {...field}
                             disabled={isFormLoading}
                             maxLength={20}
@@ -652,13 +652,13 @@ const ClubForm = ({
                   
                   <FormField
                     control={form.control}
-                    name="chairmanEmail"
+                    name="presidentEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Chairman Email</FormLabel>
+                        <FormLabel>President Email <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter chairman email"
+                            placeholder="Enter president email"
                             {...field}
                             disabled={isFormLoading}
                             type="email"
@@ -671,13 +671,13 @@ const ClubForm = ({
                   
                   <FormField
                     control={form.control}
-                    name="chairmanAadhar"
+                    name="presidentAadhar"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Chairman Aadhar Number</FormLabel>
+                        <FormLabel>President Aadhar Number <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="Enter chairman aadhar number"
+                            placeholder="Enter president aadhar number"
                             {...field}
                             disabled={isFormLoading}
                             maxLength={12}
@@ -699,7 +699,7 @@ const ClubForm = ({
                     name="secretaryName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Name</FormLabel>
+                        <FormLabel>Secretary Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary name"
@@ -717,7 +717,7 @@ const ClubForm = ({
                     name="secretaryMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Mobile</FormLabel>
+                        <FormLabel>Secretary Mobile <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary mobile"
@@ -737,7 +737,7 @@ const ClubForm = ({
                     name="secretaryEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Email</FormLabel>
+                        <FormLabel>Secretary Email <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary email"
@@ -756,7 +756,7 @@ const ClubForm = ({
                     name="secretaryAadhar"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Aadhar Number</FormLabel>
+                        <FormLabel>Secretary Aadhar Number <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary aadhar number"
@@ -781,7 +781,7 @@ const ClubForm = ({
                     name="treasurerName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Name</FormLabel>
+                        <FormLabel>Treasurer Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer name"
@@ -799,7 +799,7 @@ const ClubForm = ({
                     name="treasurerMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Mobile</FormLabel>
+                        <FormLabel>Treasurer Mobile <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer mobile"
@@ -819,7 +819,7 @@ const ClubForm = ({
                     name="treasurerEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Email</FormLabel>
+                        <FormLabel>Treasurer Email <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer email"
@@ -838,7 +838,7 @@ const ClubForm = ({
                     name="treasurerAadhar"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Aadhar Number</FormLabel>
+                        <FormLabel>Treasurer Aadhar Number <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer aadhar number"
