@@ -25,6 +25,7 @@ import EditClub from "./modules/club/EditClub";
 import CompetitionList from "@/modules/competition/CompetitionList";
 import CreateCompetition from "./modules/competition/CreateCompetition";
 import EditCompetition from "./modules/competition/EditCompetition";
+import ClubCompetitionList from "@/modules/clubcompetition/ClubCompetitionList";
 import { PlayerList } from "@/modules/players";
 import CreatePlayer from "./modules/players/CreatePlayer";
 import EditPlayer from "./modules/players/EditPlayer";
@@ -36,7 +37,7 @@ import Unauthorized from "./components/common/Unauthorized";
 import { Toaster } from "sonner";
 import "./App.css";
 const App = () => {
-    // Set to false to disable the background animation
+  // Set to false to disable the background animation
   const showAnimation = true;
 
   useEffect(() => {
@@ -192,7 +193,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-            
+
             <Route
               path="/players"
               element={
@@ -217,7 +218,16 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-            
+
+            <Route
+              path="/clubcompetitions"
+              element={
+                <ProtectedRoute roles={['clubadmin']}>
+                  <ClubCompetitionList />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/registers"
               element={
@@ -226,10 +236,10 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-            
+
             {/* Unauthorized access page */}
             <Route path="/unauthorized" element={<Unauthorized />} />
-           
+
           </Route>
         </Routes>
       </Router>

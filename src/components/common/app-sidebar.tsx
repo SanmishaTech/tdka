@@ -81,6 +81,11 @@ const initialData = {
           url: "/players",
           icon: UsersRound,
         },
+        {
+          name: "Competition",
+          url: "/clubcompetitions",
+          icon: FileText,
+        },
         
       ],
     },

@@ -42,6 +42,7 @@ interface LoginResponse {
     role: string;
     active: boolean;
     lastLogin: string;
+    clubId?: number | null;
     member?: {
       id: number;
       memberName: string;
@@ -49,6 +50,7 @@ interface LoginResponse {
     };
     isMember: boolean;
   };
+  clubId?: number | null;
 }
 
 const loginSchema = z.object({
@@ -94,12 +96,26 @@ const Login = () => {
       localStorage.setItem("refreshToken", data.accesstoken);
       localStorage.setItem("user", JSON.stringify(data.user));
       
-      // Store memberId from the nested structure if it exists
-      if (data.user.member && data.user.member.id) {
-        localStorage.setItem("memberId", data.user.member.id.toString());
+      // Store role separately for easy access
+      if (data.user.role) {
+        localStorage.setItem("userRole", data.user.role);
       }
       
-      navigate("/clubs");
+      // Store clubId in localStorage if available
+      if (data.clubId !== undefined && data.clubId !== null) {
+        localStorage.setItem("clubId", data.clubId.toString());
+      } else {
+        // Remove clubId from localStorage if user doesn't have one
+        localStorage.removeItem("clubId");
+      }
+      
+      // Redirect based on user role
+      if (data.user.role === "clubadmin" || data.user.role === "CLUB") {
+        navigate("/players");
+      } else {
+        navigate("/clubs");
+      }
+      
       toast.success("Login successful!");
     },
     onError: (error: ApiErrorResponse) => {
