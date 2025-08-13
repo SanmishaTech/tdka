@@ -216,8 +216,10 @@ const PlayerForm = ({
       form.setValue("aadharNumber", playerData.aadharNumber || "");
       
       // Set group IDs
-      if (playerData.groups && playerData.groups.length > 0) {
+      if (playerData.groups && Array.isArray(playerData.groups) && playerData.groups.length > 0) {
         form.setValue("groupIds", playerData.groups.map(group => group.id.toString()));
+      } else {
+        form.setValue("groupIds", []);
       }
 
       // Set existing profile image

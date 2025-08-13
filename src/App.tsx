@@ -26,6 +26,7 @@ import CompetitionList from "@/modules/competition/CompetitionList";
 import CreateCompetition from "./modules/competition/CreateCompetition";
 import EditCompetition from "./modules/competition/EditCompetition";
 import ClubCompetitionList from "@/modules/clubcompetition/ClubCompetitionList";
+import ClubCompetitionDetails from "@/modules/clubcompetition/ClubCompetitionDetails";
 import { PlayerList } from "@/modules/players";
 import CreatePlayer from "./modules/players/CreatePlayer";
 import EditPlayer from "./modules/players/EditPlayer";
@@ -224,6 +225,14 @@ const App = () => {
               element={
                 <ProtectedRoute roles={['clubadmin']}>
                   <ClubCompetitionList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clubcompetitions/:id"
+              element={
+                <ProtectedRoute roles={['clubadmin']}>
+                  <ClubCompetitionDetails />
                 </ProtectedRoute>
               }
             />
