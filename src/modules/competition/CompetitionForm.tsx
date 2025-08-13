@@ -7,6 +7,9 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { LoaderCircle, Check, ChevronsUpDown, ArrowLeft } from "lucide-react";
 
+// PrimeReact Editor
+import { Editor } from 'primereact/editor';
+
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +52,7 @@ interface CompetitionData {
   clubs?: string[]; // Array of club IDs
   age?: string; // Legacy field, will be removed
   lastEntryDate: string;
+  rules?: string; // Competition rules as rich text HTML
   createdAt: string;
   updatedAt: string;
 }
@@ -87,6 +91,7 @@ const competitionFormSchema = z.object({
   lastEntryDate: z.string()
     .min(1, "Last entry date is required")
     .max(255, "Last entry date must not exceed 255 characters"),
+  rules: z.string().optional(),
 });
 
 // Helper to extract user-friendly message from API error
@@ -157,6 +162,7 @@ const CompetitionForm = ({
       groups: [],
       clubs: [],
       lastEntryDate: "",
+      rules: "",
     },
   });
 
@@ -224,6 +230,7 @@ const CompetitionForm = ({
       }
 
       form.setValue("lastEntryDate", competitionData.lastEntryDate || "");
+      form.setValue("rules", competitionData.rules || "");
     }
   }, [competitionData, mode, form]);
 
@@ -627,6 +634,29 @@ const CompetitionForm = ({
                     )}
                   </div>
                 </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Rules Field - Rich Text Editor */}
+          <FormField
+            control={form.control}
+            name="rules"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Competition Rules</FormLabel>
+                <FormControl>
+                  <div className="border rounded-md">
+                    <Editor
+                      value={field.value || ''}
+                      onTextChange={(e) => field.onChange(e.htmlValue)}
+                      style={{ height: '320px' }}
+                      disabled={isFormLoading}
+                      placeholder="Enter competition rules and regulations..."
+                    />
+                  </div>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
