@@ -22,9 +22,11 @@ import { RegionList, CreateRegion, EditRegion } from "@/modules/region";
 import ClubList from "@/modules/club/ClubList";
 import CreateClub from "./modules/club/CreateClub";
 import EditClub from "./modules/club/EditClub";
-import CompetitionList from "@/modules/competition/CompetitionList";
+ import CompetitionList from "@/modules/competition/CompetitionList";
 import CreateCompetition from "./modules/competition/CreateCompetition";
 import EditCompetition from "./modules/competition/EditCompetition";
+import CompetitionDetails from "./modules/competition/CompetitionDetails";
+import CompetitionClubDetails from "./modules/competition/CompetitionClubDetails";
 import ClubCompetitionList from "@/modules/clubcompetition/ClubCompetitionList";
 import ClubCompetitionDetails from "@/modules/clubcompetition/ClubCompetitionDetails";
 import { PlayerList } from "@/modules/players";
@@ -114,6 +116,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            
             <Route
               path="/groups"
               element={
@@ -191,6 +194,22 @@ const App = () => {
               element={
                 <ProtectedRoute roles={['admin']}>
                   <EditCompetition />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/competitions/:id"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <CompetitionDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/competitions/:competitionId/clubs/:clubId"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <CompetitionClubDetails />
                 </ProtectedRoute>
               }
             />

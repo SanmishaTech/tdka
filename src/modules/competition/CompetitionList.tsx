@@ -26,6 +26,7 @@ import {
   ChevronUp,
   ChevronDown,
   PlusCircle,
+  Info,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -106,6 +107,11 @@ const CompetitionList = () => {
   // Handle edit competition - navigate to edit page
   const handleEdit = (id: string) => {
     navigate(`/competitions/edit/${id}`);
+  };
+
+  // Handle view competition details - navigate to details page
+  const handleViewDetails = (id: string) => {
+    navigate(`/competitions/${id}`);
   };
 
   // Handle create competition - navigate to create page
@@ -220,7 +226,18 @@ const CompetitionList = () => {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => handleViewDetails(competition.id.toString())}
+                            title="View Details"
+                          >
+                            <Info className="h-4 w-4" />
+                            <span className="sr-only">View Details</span>
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleEdit(competition.id.toString())}
+                            title="Edit Competition"
                           >
                             <PenSquare className="h-4 w-4" />
                             <span className="sr-only">Edit</span>
