@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -19,7 +19,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +28,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { LoaderCircle, ArrowLeft, Calendar, Users, MapPin, UserPlus, Plus, X, CheckCircle2 } from "lucide-react";
+import { LoaderCircle, ArrowLeft, Calendar, Users, UserPlus, Plus, X, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { get, post, del } from "@/services/apiService";
 
@@ -101,6 +100,20 @@ const ClubCompetitionDetails = () => {
     },
   });
 
+  // Effect to populate selected players with already registered players when dialog opens
+  useEffect(() => {
+    if (showAddPlayers && registeredPlayers?.registrations && eligiblePlayers?.players) {
+      // Extract player IDs from registered players that are also in eligible players
+      const registeredPlayerIds = registeredPlayers.registrations
+        .map((registration: any) => registration.player.id)
+        .filter((playerId: number) =>
+          eligiblePlayers.players.some((eligiblePlayer: any) => eligiblePlayer.id === playerId)
+        );
+
+      setSelectedPlayers(registeredPlayerIds);
+    }
+  }, [showAddPlayers, registeredPlayers, eligiblePlayers]);
+
   // Format date for display
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
@@ -133,18 +146,25 @@ const ClubCompetitionDetails = () => {
     if (!competition?.age || !player.dateOfBirth) return true;
 
     const playerAge = calculateAge(player.dateOfBirth);
-    const ageRange = competition.age;
+    const ageRange = competition.age.toLowerCase();
 
-    // Parse age range (e.g., "16-18", "Under 21", "Above 18")
-    if (ageRange.includes("-")) {
+    // Parse age range (e.g., "16-18", "Under 21", "Above 18", "21", "U21", "U-21")
+    if (ageRange.includes("-") && !ageRange.includes("u-")) {
+      // Range format like "16-18"
       const [minAge, maxAge] = ageRange.split("-").map(Number);
       return playerAge >= minAge && playerAge <= maxAge;
-    } else if (ageRange.toLowerCase().includes("under")) {
+    } else if (ageRange.includes("under") || ageRange.startsWith("u")) {
+      // Under format like "Under 21", "U21", "U-21"
       const maxAge = parseInt(ageRange.match(/\d+/)?.[0] || "0");
-      return playerAge < maxAge;
-    } else if (ageRange.toLowerCase().includes("above")) {
+      return playerAge <= maxAge;
+    } else if (ageRange.includes("above") || ageRange.includes("over")) {
+      // Above format like "Above 18", "Over 18"
       const minAge = parseInt(ageRange.match(/\d+/)?.[0] || "0");
-      return playerAge > minAge;
+      return playerAge >= minAge;
+    } else if (/^\d+$/.test(ageRange)) {
+      // Single number format like "21" (treat as "equal to or under")
+      const maxAge = parseInt(ageRange);
+      return playerAge <= maxAge;
     }
 
     return true;
@@ -169,7 +189,17 @@ const ClubCompetitionDetails = () => {
       toast.error("Please select at least one player");
       return;
     }
-    addPlayersMutation.mutate(selectedPlayers);
+
+    // Filter out already registered players to only add new ones
+    const registeredPlayerIds = registeredPlayers?.registrations?.map((reg: any) => reg.player.id) || [];
+    const newPlayersToAdd = selectedPlayers.filter(playerId => !registeredPlayerIds.includes(playerId));
+
+    if (newPlayersToAdd.length === 0) {
+      toast.info("All selected players are already registered for this competition");
+      return;
+    }
+
+    addPlayersMutation.mutate(newPlayersToAdd);
   };
 
   // Handle error
@@ -343,6 +373,7 @@ const ClubCompetitionDetails = () => {
                               if (!player) return null;
 
                               const playerAge = calculateAge(player.dateOfBirth);
+                              const isAlreadyRegistered = registeredPlayers?.registrations?.some((reg: any) => reg.player.id === playerId) || false;
 
                               return (
                                 <motion.div
@@ -352,7 +383,10 @@ const ClubCompetitionDetails = () => {
                                   exit={{ opacity: 0, x: -20, scale: 0.9 }}
                                   layout
                                   transition={{ duration: 0.3, ease: "easeInOut" }}
-                                  className="flex items-center justify-between p-3 border rounded-lg bg-primary/5 border-primary/20 cursor-pointer hover:bg-primary/10 transition-all duration-200 hover:shadow-sm"
+                                  className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${isAlreadyRegistered
+                                    ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                                    : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
+                                    }`}
                                   onClick={() => handlePlayerSelect(player.id, false)}
                                   whileHover={{ scale: 1.02 }}
                                   whileTap={{ scale: 0.98 }}
@@ -365,6 +399,11 @@ const ClubCompetitionDetails = () => {
                                       <Badge variant="outline" className="text-xs flex-shrink-0">
                                         Age: {playerAge}
                                       </Badge>
+                                      {isAlreadyRegistered && (
+                                        <Badge variant="secondary" className="text-xs flex-shrink-0 bg-green-100 text-green-800">
+                                          Already Registered
+                                        </Badge>
+                                      )}
                                     </div>
                                     <div className="text-xs text-muted-foreground truncate">
                                       {player.uniqueIdNumber} • {player.position || 'N/A'}
@@ -408,9 +447,17 @@ const ClubCompetitionDetails = () => {
                     <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
                     Adding Players...
                   </>
-                ) : (
-                  `Add ${selectedPlayers.length} Player${selectedPlayers.length !== 1 ? 's' : ''}`
-                )}
+                ) : (() => {
+                  const registeredPlayerIds = registeredPlayers?.registrations?.map((reg: any) => reg.player.id) || [];
+                  const newPlayersCount = selectedPlayers.filter(playerId => !registeredPlayerIds.includes(playerId)).length;
+                  const alreadyRegisteredCount = selectedPlayers.length - newPlayersCount;
+
+                  if (newPlayersCount === 0) {
+                    return "All Selected Players Already Registered";
+                  }
+
+                  return `Add ${newPlayersCount} New Player${newPlayersCount !== 1 ? 's' : ''}${alreadyRegisteredCount > 0 ? ` (${alreadyRegisteredCount} already registered)` : ''}`;
+                })()}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -424,48 +471,71 @@ const ClubCompetitionDetails = () => {
           <CardDescription>Competition Details and Information</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Competition Dates */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Competition Period</span>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Competition Dates */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Competition Period</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <p>From: {formatDate(competition?.fromDate)}</p>
+                  <p>To: {formatDate(competition?.toDate)}</p>
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                <p>From: {formatDate(competition?.fromDate)}</p>
-                <p>To: {formatDate(competition?.toDate)}</p>
+
+              {/* Last Entry Date */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Last Entry Date</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {formatDate(competition?.lastEntryDate)}
+                </div>
+              </div>
+
+              {/* Max Players */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Max Players</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {competition?.maxPlayers} players
+                </div>
+              </div>
+
+              {/* Age Category */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{competition?.age}</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">Age Category</div>
               </div>
             </div>
 
-            {/* Last Entry Date */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Last Entry Date</span>
+            {/* Participating Groups */}
+            {competition?.groups && competition.groups.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Participating Groups</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {competition.groups.map((group: any) => (
+                    <div key={group.id} className="border rounded-lg p-3">
+                      <h4 className="font-medium text-sm mb-2">{group.groupName}</h4>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="text-xs">{group.gender}</Badge>
+                        <Badge variant="outline" className="text-xs">{group.age}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                {formatDate(competition?.lastEntryDate)}
-              </div>
-            </div>
-
-            {/* Max Players */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Max Players</span>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {competition?.maxPlayers} players
-              </div>
-            </div>
-
-            {/* Age Category */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{competition?.age}</Badge>
-              </div>
-              <div className="text-sm text-muted-foreground">Age Category</div>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -481,72 +551,6 @@ const ClubCompetitionDetails = () => {
               className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: competition.rules }}
             />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Participating Groups */}
-      {competition?.groups && competition.groups.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Participating Groups</CardTitle>
-            <CardDescription>
-              Groups eligible for this competition
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {competition.groups.map((group: any) => (
-                <div key={group.id} className="border rounded-lg p-4">
-                  <h4 className="font-medium">{group.groupName}</h4>
-                  <div className="flex gap-2 mt-2">
-                    <Badge variant="outline">{group.gender}</Badge>
-                    <Badge variant="outline">{group.age}</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Participating Clubs */}
-      {competition?.clubs && competition.clubs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Participating Clubs</CardTitle>
-            <CardDescription>
-              {competition.clubs.length} clubs are participating in this competition
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Club Name</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {competition.clubs.map((club: any) => (
-                    <TableRow key={club.id}>
-                      <TableCell className="font-medium">{club.clubName}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          {club.city}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="default">Participating</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
           </CardContent>
         </Card>
       )}
