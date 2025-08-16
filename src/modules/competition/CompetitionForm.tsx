@@ -48,8 +48,8 @@ interface CompetitionData {
   maxPlayers: number;
   fromDate: string;
   toDate: string;
-  groups?: string[]; // Array of group IDs
-  clubs?: string[]; // Array of club IDs
+  groups?: (string | Group)[]; // Array of group IDs or group objects
+  clubs?: (string | Club)[]; // Array of club IDs or club objects
   age?: string; // Legacy field, will be removed
   lastEntryDate: string;
   ageEligibilityDate?: string; // Reference date for age calculations
@@ -178,45 +178,43 @@ const CompetitionForm = ({
     const eligibility = new Date(eligibilityDate);
     const today = new Date();
 
-    // Calculate age as of the eligibility date
-    const ageInYears = eligibility.getFullYear() - today.getFullYear();
-    const monthDiff = eligibility.getMonth() - today.getMonth();
-    const dayDiff = eligibility.getDate() - today.getDate();
+    // Calculate the age of someone born on the eligibility date as of today
+    let calculatedAge = today.getFullYear() - eligibility.getFullYear();
+    const monthDiff = today.getMonth() - eligibility.getMonth();
+    const dayDiff = today.getDate() - eligibility.getDate();
 
-    // Adjust age calculation
-    let calculatedAge = Math.abs(ageInYears);
-    if (ageInYears < 0) {
-      // If eligibility date is in the past, calculate how old someone would be now if born on eligibility date
-      calculatedAge = today.getFullYear() - eligibility.getFullYear();
-      if (monthDiff > 0 || (monthDiff === 0 && dayDiff > 0)) {
-        calculatedAge--;
-      }
-    } else {
-      // If eligibility date is in the future, calculate how old someone born today would be on that date
-      if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-        calculatedAge--;
-      }
+    // Adjust for month/day differences
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      calculatedAge--;
     }
+
+    // Make sure age is positive (in case eligibility date is in the future)
+    calculatedAge = Math.abs(calculatedAge);
 
     // Common age categories for sports competitions
-    const ageGroups = [8, 10, 12, 14, 16, 18, 20, 23, 25, 30, 35, 40, 45, 50];
+    const ageGroups = [8, 10, 12, 14, 16, 18, 20, 21, 23, 25, 30, 35, 40, 45, 50];
 
-    // Find the appropriate "Under X" category
+    // Find the next higher age limit to create "Under X" category
+    let categoryAge = calculatedAge + 1;
+    
+    // Find the appropriate "Under X" category by looking for the next age group
     for (const ageLimit of ageGroups) {
       if (calculatedAge < ageLimit) {
-        return {
-          category: `Under ${ageLimit}`,
-          age: calculatedAge,
-          description: `Age ${calculatedAge} as of ${eligibility.toLocaleDateString()}`
-        };
+        categoryAge = ageLimit;
+        break;
       }
     }
 
-    // If older than all categories
+    // If older than all predefined categories, use a higher category
+    if (calculatedAge >= 50) {
+      categoryAge = Math.ceil((calculatedAge + 5) / 5) * 5; // Round up to nearest 5
+    }
+
     return {
-      category: "Over 50",
+      category: `Under ${categoryAge}`,
       age: calculatedAge,
-      description: `Age ${calculatedAge} as of ${eligibility.toLocaleDateString()}`
+      description: `Players born on or after ${eligibility.toLocaleDateString()} (currently ${calculatedAge} years old) qualify for Under ${categoryAge} category`,
+      eligibilityDate: eligibility.toLocaleDateString()
     };
   };
 
@@ -269,9 +267,18 @@ const CompetitionForm = ({
       form.setValue("fromDate", competitionData.fromDate || "");
       form.setValue("toDate", competitionData.toDate || "");
 
-      // Handle groups data - if groups exist use them, otherwise try to convert age to group
+      // Handle groups data - convert objects to IDs if needed
       if (competitionData.groups && competitionData.groups.length > 0) {
-        form.setValue("groups", competitionData.groups);
+        // Check if groups are objects or strings
+        const groupIds = competitionData.groups.map((group: any) => {
+          // If it's an object with id property, extract the id
+          if (typeof group === 'object' && group.id) {
+            return group.id.toString();
+          }
+          // If it's already a string, use it as is
+          return group.toString();
+        });
+        form.setValue("groups", groupIds);
       } else if (competitionData.age) {
         // If we have legacy age data but no groups, we'll need to handle this
         // This is a temporary solution until backend is updated
@@ -280,9 +287,18 @@ const CompetitionForm = ({
         form.setValue("groups", []);
       }
 
-      // Handle clubs data
+      // Handle clubs data - convert objects to IDs if needed
       if (competitionData.clubs && competitionData.clubs.length > 0) {
-        form.setValue("clubs", competitionData.clubs);
+        // Check if clubs are objects or strings
+        const clubIds = competitionData.clubs.map((club: any) => {
+          // If it's an object with id property, extract the id
+          if (typeof club === 'object' && club.id) {
+            return club.id.toString();
+          }
+          // If it's already a string, use it as is
+          return club.toString();
+        });
+        form.setValue("clubs", clubIds);
       } else {
         form.setValue("clubs", []);
       }
@@ -544,22 +560,28 @@ const CompetitionForm = ({
                         />
                       </FormControl>
                       <div className="text-xs text-muted-foreground mt-1">
-                        This date is used as reference for calculating age categories. Usually set to competition start date or January 1st of competition year.
+                        Select a reference date for age calculation. Players born on or after this date will be eligible for the calculated age category.
                       </div>
                       <FormMessage />
                       {/* Age Category Display */}
                       {ageEligibilityDate && ageCategory && (
-                        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                          <div className="flex items-center gap-2">
+                        <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-3 mb-2">
                             <div className="text-sm font-medium text-blue-800">
-                              Age Category:
+                              Calculated Age Category:
                             </div>
-                            <div className="text-sm font-bold text-blue-900 bg-blue-100 px-2 py-1 rounded">
+                            <div className="text-lg font-bold text-white bg-blue-600 px-3 py-1 rounded-full shadow-sm">
                               {ageCategory.category}
                             </div>
                           </div>
-                          <div className="text-xs text-blue-700 mt-1">
-                            {ageCategory.description}
+                          <div className="text-sm text-blue-700 mb-1">
+                            <strong>Eligibility:</strong> {ageCategory.description}
+                          </div>
+                          <div className="text-xs text-blue-600">
+                            <strong>Reference Date:</strong> {ageCategory.eligibilityDate}
+                          </div>
+                          <div className="text-xs text-blue-600 mt-1">
+                            <strong>Example:</strong> A player born on {ageCategory.eligibilityDate} would currently be {ageCategory.age} years old and qualify for this category.
                           </div>
                         </div>
                       )}
