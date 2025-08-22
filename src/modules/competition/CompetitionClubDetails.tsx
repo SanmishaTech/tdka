@@ -1,4 +1,3 @@
-import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -24,6 +23,16 @@ import { get } from "@/services/apiService";
 const CompetitionClubDetails = () => {
   const { competitionId, clubId } = useParams<{ competitionId: string; clubId: string }>();
   const navigate = useNavigate();
+
+  // Determine user role for role-based navigation/UI
+  let userRole: string = 'admin';
+  try {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      userRole = JSON.parse(storedUser)?.role || 'admin';
+    }
+  } catch {}
+  const isObserver = userRole === 'observer';
 
   // Fetch competition details
   const {
@@ -72,18 +81,6 @@ const CompetitionClubDetails = () => {
     }
   };
 
-  // Calculate age from date of birth
-  const calculateAge = (dateOfBirth: string) => {
-    if (!dateOfBirth) return 'N/A';
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-  };
 
   // Handle error
   if (isError) {
@@ -91,7 +88,7 @@ const CompetitionClubDetails = () => {
       <div className="flex flex-col items-center justify-center h-96">
         <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Details</h2>
         <p>{(error as any)?.message || "Failed to load club competition details"}</p>
-        <Button className="mt-4" onClick={() => navigate(`/competitions/${competitionId}`)}>
+        <Button className="mt-4" onClick={() => navigate(isObserver ? `/observercompetitions/${competitionId}` : `/competitions/${competitionId}`)}>
           Back to Competition
         </Button>
       </div>
@@ -114,7 +111,7 @@ const CompetitionClubDetails = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(`/competitions/${competitionId}`)}
+          onClick={() => navigate(isObserver ? `/observercompetitions/${competitionId}` : `/competitions/${competitionId}`)}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Competition

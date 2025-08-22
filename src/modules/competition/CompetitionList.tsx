@@ -70,6 +70,17 @@ const CompetitionList = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  // Role-based UI control
+  let userRole = 'admin';
+  try {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      userRole = JSON.parse(storedUser)?.role || 'admin';
+    }
+  } catch {}
+  const isAdmin = userRole === 'admin';
+  const isClubAdmin = userRole === 'clubadmin';
+
   // Observer dialog state
   const [observerDialogOpen, setObserverDialogOpen] = useState(false);
   const [selectedCompetition, setSelectedCompetition] = useState<any | null>(null);
@@ -173,7 +184,8 @@ const CompetitionList = () => {
 
   // Handle view competition details - navigate to details page
   const handleViewDetails = (id: string) => {
-    navigate(`/competitions/${id}`);
+    const isObserverRole = userRole === 'observer';
+    navigate(isObserverRole ? `/observercompetitions/${id}` : `/competitions/${id}`);
   };
 
   // Handle open observer dialog
@@ -275,14 +287,13 @@ const CompetitionList = () => {
               />
             </div>
 
-            {/* Action Buttons */}
-            <Button
-              onClick={handleCreate}
-              size="sm"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add
-            </Button>
+            {/* Action Buttons (Admins only) */}
+            {isAdmin && (
+              <Button onClick={handleCreate} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add
+              </Button>
+            )}
           </div>
 
           {/* Competitions Table */}
@@ -348,69 +359,77 @@ const CompetitionList = () => {
                               <Info className="h-4 w-4" />
                               View details
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                handleOpenObserverDialog(competition);
-                              }}
-                            >
-                              <UserPlus className="h-4 w-4" />
-                              Set observer
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                handleEdit(competition.id.toString());
-                              }}
-                            >
-                              <PenSquare className="h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                handleDownloadClubsPDF(competition.id, competition.competitionName);
-                              }}
-                            >
-                              <FileDown className="h-4 w-4" />
-                              Download clubs PDF
-                            </DropdownMenuItem>
+                            {isAdmin && (
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  handleOpenObserverDialog(competition);
+                                }}
+                              >
+                                <UserPlus className="h-4 w-4" />
+                                Set observer
+                              </DropdownMenuItem>
+                            )}
+                            {isAdmin && (
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  handleEdit(competition.id.toString());
+                                }}
+                              >
+                                <PenSquare className="h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {(isAdmin || isClubAdmin) && (
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  handleDownloadClubsPDF(competition.id, competition.competitionName);
+                                }}
+                              >
+                                <FileDown className="h-4 w-4" />
+                                Download clubs PDF
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onSelect={(e) => e.preventDefault()}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this competition? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteMutation.mutate(competition.id)}
-                                    className="bg-red-500 hover:bg-red-600"
+                            {isAdmin && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={(e) => e.preventDefault()}
                                   >
-                                    {deleteMutation.isPending ? (
-                                      <>
-                                        <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
-                                        Deleting...
-                                      </>
-                                    ) : (
-                                      "Delete"
-                                    )}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete this competition? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteMutation.mutate(competition.id)}
+                                      className="bg-red-500 hover:bg-red-600"
+                                    >
+                                      {deleteMutation.isPending ? (
+                                        <>
+                                          <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                                          Deleting...
+                                        </>
+                                      ) : (
+                                        "Delete"
+                                      )}
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

@@ -1,29 +1,14 @@
 import * as React from "react";
 import {
   AudioWaveform,
-  BookOpen,
-  Bot,
   Command,
   UsersRound,
   GalleryVerticalEnd,
   Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,
-  MessageCircle,
-  Icon,
   FileText,
-  UserRound,
-  User,
-  UserCircle,
-  CreditCard,
 } from "lucide-react";
-
-import { NavMain } from "@/components/common/nav-main";
 import { NavProjects } from "@/components/common/nav-projects";
 import { NavUser } from "@/components/common/nav-user";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
 import { ThemeToggle } from "@/components/common/theme-toggle";
 // import { TeamSwitcher } from "@/components/common/team-switcher"
 import {
@@ -89,6 +74,15 @@ const initialData = {
         
       ],
     },
+    observer: {
+      projects: [
+        {
+          name: "Competition",
+          url: "/observercompetitions",
+          icon: FileText,
+        },
+      ],
+    },
   },
   user: {
     name: "",
@@ -119,7 +113,6 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [data, setData] = React.useState({
     ...initialData,
     projects: [] as typeof initialData.roles.admin.projects,
-    navMain: [] as typeof initialData.roles.admin.projects,
   });
 
   // Dark mode toggle state and handlers
@@ -236,7 +229,6 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavProjects projects={data.projects || []} />
-        <NavMain items={data.navMain || []} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

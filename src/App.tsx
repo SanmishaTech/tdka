@@ -256,6 +256,32 @@ const App = () => {
               }
             />
 
+            {/* Observer routes mirroring club competition separation */}
+            <Route
+              path="/observercompetitions"
+              element={
+                <ProtectedRoute roles={['observer']}>
+                  <CompetitionList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/observercompetitions/:id"
+              element={
+                <ProtectedRoute roles={['observer']}>
+                  <CompetitionDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/observercompetitions/:competitionId/clubs/:clubId"
+              element={
+                <ProtectedRoute roles={['observer']}>
+                  <CompetitionClubDetails />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/registers"
               element={

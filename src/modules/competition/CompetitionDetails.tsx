@@ -1,4 +1,3 @@
-import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -25,6 +24,18 @@ import { get } from "@/services/apiService";
 const CompetitionDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // Determine user role for role-based navigation/UI
+  let userRole: string = 'admin';
+  try {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      userRole = JSON.parse(storedUser)?.role || 'admin';
+    }
+  } catch {}
+  const isAdmin = userRole === 'admin';
+  const isClubAdmin = userRole === 'clubadmin';
+  const isObserver = userRole === 'observer';
 
   // Fetch competition details
   const {
@@ -55,7 +66,7 @@ const CompetitionDetails = () => {
 
   // Handle view club competition details
   const handleViewClubDetails = (clubId: number) => {
-    navigate(`/competitions/${id}/clubs/${clubId}`);
+    navigate(isObserver ? `/observercompetitions/${id}/clubs/${clubId}` : `/competitions/${id}/clubs/${clubId}`);
   };
 
   // Handle PDF download for club details and players
@@ -128,9 +139,10 @@ const CompetitionDetails = () => {
         }, 1000);
       }
       
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-      toast.error(`Failed to download PDF: ${error.message}`, { id: 'pdf-download' });
+    } catch (err: unknown) {
+      console.error('Error downloading PDF:', err);
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      toast.error(`Failed to download PDF: ${message}`, { id: 'pdf-download' });
     }
   };
 
@@ -140,7 +152,7 @@ const CompetitionDetails = () => {
       <div className="flex flex-col items-center justify-center h-96">
         <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Competition</h2>
         <p>{(error as any)?.message || "Failed to load competition details"}</p>
-        <Button className="mt-4" onClick={() => navigate("/competitions")}>
+        <Button className="mt-4" onClick={() => navigate(isObserver ? "/observercompetitions" : "/competitions")}>
           Back to Competitions
         </Button>
       </div>
@@ -163,7 +175,7 @@ const CompetitionDetails = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/competitions")}
+          onClick={() => navigate(isObserver ? "/observercompetitions" : "/competitions")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Competitions
@@ -319,15 +331,17 @@ const CompetitionDetails = () => {
                             <span className="sr-only">View Details</span>
                           </Button>
                           
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDownloadClubPDF(club.id, club.clubName)}
-                            title="Download Club Details PDF"
-                          >
-                            <Download className="h-4 w-4" />
-                            <span className="sr-only">Download PDF</span>
-                          </Button>
+                          {(isAdmin || isClubAdmin) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDownloadClubPDF(club.id, club.clubName)}
+                              title="Download Club Details PDF"
+                            >
+                              <Download className="h-4 w-4" />
+                              <span className="sr-only">Download PDF</span>
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
