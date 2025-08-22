@@ -27,6 +27,8 @@ import {
   ChevronDown,
   PlusCircle,
   Info,
+  FileDown,
+  MoreHorizontal,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -39,6 +41,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, del } from "@/services/apiService";
 
@@ -117,6 +126,26 @@ const CompetitionList = () => {
   // Handle create competition - navigate to create page
   const handleCreate = () => {
     navigate('/competitions/create');
+  };
+
+  // Handle download participating clubs PDF for a competition
+  const handleDownloadClubsPDF = async (competitionId: number, competitionName: string) => {
+    try {
+      const response: any = await get(`/competitions/${competitionId}/clubs/pdf`, undefined, { responseType: 'blob' });
+      const blob: Blob = response?.data || response; // apiService.get returns axios response when responseType is 'blob'
+      const url = window.URL.createObjectURL(blob);
+      const newWindow = window.open(url, '_blank');
+      if (!newWindow) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${competitionName}_Participating_Clubs.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to download PDF');
+    }
   };
 
   // Format date for display
@@ -224,60 +253,78 @@ const CompetitionList = () => {
                       <TableCell>{formatDate(competition.ageEligibilityDate)}</TableCell>
                       <TableCell>{formatDate(competition.lastEntryDate)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewDetails(competition.id.toString())}
-                            title="View Details"
-                          >
-                            <Info className="h-4 w-4" />
-                            <span className="sr-only">View Details</span>
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(competition.id.toString())}
-                            title="Edit Competition"
-                          >
-                            <PenSquare className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this competition? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteMutation.mutate(competition.id)}
-                                  className="bg-red-500 hover:bg-red-600"
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More actions">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleViewDetails(competition.id.toString());
+                              }}
+                            >
+                              <Info className="h-4 w-4" />
+                              View details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleEdit(competition.id.toString());
+                              }}
+                            >
+                              <PenSquare className="h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleDownloadClubsPDF(competition.id, competition.competitionName);
+                              }}
+                            >
+                              <FileDown className="h-4 w-4" />
+                              Download clubs PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onSelect={(e) => e.preventDefault()}
                                 >
-                                  {deleteMutation.isPending ? (
-                                    <>
-                                      <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
-                                      Deleting...
-                                    </>
-                                  ) : (
-                                    "Delete"
-                                  )}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this competition? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate(competition.id)}
+                                    className="bg-red-500 hover:bg-red-600"
+                                  >
+                                    {deleteMutation.isPending ? (
+                                      <>
+                                        <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                                        Deleting...
+                                      </>
+                                    ) : (
+                                      "Delete"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
