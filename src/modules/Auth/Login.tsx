@@ -110,7 +110,10 @@ const Login = () => {
       }
       
       // Redirect based on user role
-      if (data.user.role === "clubadmin" || data.user.role === "CLUB") {
+      const role = data.user.role;
+      if (role && role.toLowerCase() === "observer") {
+        navigate("/observercompetitions");
+      } else if (role === "clubadmin" || role === "CLUB") {
         navigate("/players");
       } else {
         navigate("/clubs");
