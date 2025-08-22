@@ -29,6 +29,7 @@ import {
   Info,
   FileDown,
   MoreHorizontal,
+  UserPlus,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -42,6 +43,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -49,7 +59,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CustomPagination from "@/components/common/custom-pagination";
-import { get, del } from "@/services/apiService";
+import { get, del, post, put } from "@/services/apiService";
 
 const CompetitionList = () => {
   const [page, setPage] = useState(1);
@@ -59,6 +69,14 @@ const CompetitionList = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  // Observer dialog state
+  const [observerDialogOpen, setObserverDialogOpen] = useState(false);
+  const [selectedCompetition, setSelectedCompetition] = useState<any | null>(null);
+  const [observerEmail, setObserverEmail] = useState("");
+  const [observerPassword, setObserverPassword] = useState("");
+  const [existingObserver, setExistingObserver] = useState<any | null>(null);
+  const [isFetchingObserver, setIsFetchingObserver] = useState(false);
 
   // Fetch competitions
   const {
@@ -80,6 +98,41 @@ const CompetitionList = () => {
     },
     onError: (error: any) => {
       toast.error(error.errors?.message || error.message || "Failed to delete competition");
+    },
+  });
+
+  // Create/assign observer mutation
+  const createObserverMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedCompetition) throw new Error("No competition selected");
+      const path = `/competitions/${selectedCompetition.id}/observer`;
+      if (existingObserver) {
+        // Update existing observer
+        return await put(path, {
+          email: observerEmail || undefined,
+          password: observerPassword || undefined,
+        });
+      } else {
+        // Create new observer
+        return await post(path, {
+          email: observerEmail,
+          password: observerPassword,
+        });
+      }
+    },
+    onSuccess: (res: any) => {
+      const updated = !!existingObserver;
+      toast.success(updated ? "Observer updated successfully" : "Observer created and assigned successfully");
+      setObserverDialogOpen(false);
+      setObserverEmail("");
+      setObserverPassword("");
+      setSelectedCompetition(null);
+      setExistingObserver(null);
+      // No need to refetch list, but safe to invalidate
+      queryClient.invalidateQueries({ queryKey: ["competitions"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || error?.errors?.message || (existingObserver ? "Failed to update observer" : "Failed to create observer"));
     },
   });
 
@@ -121,6 +174,32 @@ const CompetitionList = () => {
   // Handle view competition details - navigate to details page
   const handleViewDetails = (id: string) => {
     navigate(`/competitions/${id}`);
+  };
+
+  // Handle open observer dialog
+  const handleOpenObserverDialog = async (competition: any) => {
+    setSelectedCompetition(competition);
+    setObserverEmail("");
+    setObserverPassword("");
+    setExistingObserver(null);
+    setObserverDialogOpen(true);
+    // Fetch existing observer details if any
+    try {
+      setIsFetchingObserver(true);
+      const res: any = await get(`/competitions/${competition.id}/observer`);
+      const obs = res?.observer || res;
+      if (obs?.email) {
+        setExistingObserver(obs);
+        setObserverEmail(obs.email);
+      } else {
+        setExistingObserver(null);
+      }
+    } catch (err: any) {
+      // 404 -> no observer assigned
+      setExistingObserver(null);
+    } finally {
+      setIsFetchingObserver(false);
+    }
   };
 
   // Handle create competition - navigate to create page
@@ -272,6 +351,15 @@ const CompetitionList = () => {
                             <DropdownMenuItem
                               onSelect={(e) => {
                                 e.preventDefault();
+                                handleOpenObserverDialog(competition);
+                              }}
+                            >
+                              <UserPlus className="h-4 w-4" />
+                              Set observer
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
                                 handleEdit(competition.id.toString());
                               }}
                             >
@@ -367,6 +455,66 @@ const CompetitionList = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Observer Creation Dialog */}
+      <Dialog open={observerDialogOpen} onOpenChange={setObserverDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedCompetition ? `${existingObserver ? 'Update' : 'Set'} Observer - ${selectedCompetition.competitionName}` : "Set Observer"}
+            </DialogTitle>
+            <DialogDescription>
+              {existingObserver
+                ? 'An observer is already assigned. You can update the email and/or password.'
+                : 'Create a single observer account for this competition. Provide an email and password. Only one observer is allowed per competition.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="observer-email">Email</Label>
+              <Input
+                id="observer-email"
+                type="email"
+                placeholder={isFetchingObserver ? 'Loading...' : 'observer@example.com'}
+                value={observerEmail}
+                onChange={(e) => setObserverEmail(e.target.value)}
+                disabled={isFetchingObserver || createObserverMutation.isPending}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="observer-password">Password</Label>
+              <Input
+                id="observer-password"
+                type="password"
+                placeholder={existingObserver ? 'Leave blank to keep current password' : 'Enter a password'}
+                value={observerPassword}
+                onChange={(e) => setObserverPassword(e.target.value)}
+                disabled={createObserverMutation.isPending}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setObserverDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createObserverMutation.mutate()}
+              disabled={
+                createObserverMutation.isPending ||
+                !observerEmail ||
+                (!existingObserver && !observerPassword) // password required only when creating
+              }
+            >
+              {(createObserverMutation.isPending || isFetchingObserver) && (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {existingObserver ? 'Update Observer' : 'Create Observer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
