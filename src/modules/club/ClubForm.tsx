@@ -76,6 +76,18 @@ interface ClubData {
   treasurerEmail?: string;
   treasurerAadhar?: string;
   
+  // Coach details
+  coachName?: string;
+  coachMobile?: string;
+  coachEmail?: string;
+  coachAadhar?: string;
+  
+  // Manager details
+  managerName?: string;
+  managerMobile?: string;
+  managerEmail?: string;
+  managerAadhar?: string;
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -148,6 +160,18 @@ const clubFormSchemaBase = z.object({
   treasurerAadhar: z.string()
     .min(1, "Treasurer aadhar is required")
     .max(12, "Treasurer aadhar must not exceed 12 characters"),
+  
+  // Coach details (optional)
+  coachName: z.string().max(255, "Coach name must not exceed 255 characters").optional(),
+  coachMobile: z.string().max(20, "Coach mobile must not exceed 20 characters").optional(),
+  coachEmail: z.string().email("Valid coach email is required").max(255, "Coach email must not exceed 255 characters").optional(),
+  coachAadhar: z.string().max(12, "Coach aadhar must not exceed 12 characters").optional(),
+  
+  // Manager details (optional)
+  managerName: z.string().max(255, "Manager name must not exceed 255 characters").optional(),
+  managerMobile: z.string().max(20, "Manager mobile must not exceed 20 characters").optional(),
+  managerEmail: z.string().email("Valid manager email is required").max(255, "Manager email must not exceed 255 characters").optional(),
+  managerAadhar: z.string().max(12, "Manager aadhar must not exceed 12 characters").optional(),
 });
 
 const clubFormSchemaCreate = clubFormSchemaBase.extend({
@@ -238,6 +262,18 @@ const ClubForm = ({
       treasurerMobile: "",
       treasurerEmail: "",
       treasurerAadhar: "",
+      
+      // Coach details
+      coachName: "",
+      coachMobile: "",
+      coachEmail: "",
+      coachAadhar: "",
+      
+      // Manager details
+      managerName: "",
+      managerMobile: "",
+      managerEmail: "",
+      managerAadhar: "",
     },
   });
 
@@ -299,6 +335,18 @@ const ClubForm = ({
         treasurerMobile: clubData.treasurerMobile || "",
         treasurerEmail: clubData.treasurerEmail || "",
         treasurerAadhar: clubData.treasurerAadhar || "",
+        
+        // Coach details
+        coachName: clubData.coachName || "",
+        coachMobile: clubData.coachMobile || "",
+        coachEmail: clubData.coachEmail || "",
+        coachAadhar: clubData.coachAadhar || "",
+        
+        // Manager details
+        managerName: clubData.managerName || "",
+        managerMobile: clubData.managerMobile || "",
+        managerEmail: clubData.managerEmail || "",
+        managerAadhar: clubData.managerAadhar || "",
       });
     }
   }, [clubData, mode, form]);
@@ -842,6 +890,170 @@ const ClubForm = ({
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer aadhar number"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={12}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+              
+              {/* Coach Details */}
+              <div className="space-y-4 mt-6">
+                <h4 className="text-md font-medium text-muted-foreground">Coach Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="coachName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Coach Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter coach name"
+                            {...field}
+                            disabled={isFormLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="coachMobile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Coach Mobile</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter coach mobile"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={10}
+                            type="tel"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="coachEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Coach Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter coach email"
+                            {...field}
+                            disabled={isFormLoading}
+                            type="email"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="coachAadhar"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Coach Aadhar Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter coach aadhar number"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={12}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+              
+              {/* Manager Details */}
+              <div className="space-y-4 mt-6">
+                <h4 className="text-md font-medium text-muted-foreground">Manager Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="managerName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Manager Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter manager name"
+                            {...field}
+                            disabled={isFormLoading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="managerMobile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Manager Mobile</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter manager mobile"
+                            {...field}
+                            disabled={isFormLoading}
+                            maxLength={10}
+                            type="tel"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="managerEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Manager Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter manager email"
+                            {...field}
+                            disabled={isFormLoading}
+                            type="email"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="managerAadhar"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Manager Aadhar Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter manager aadhar number"
                             {...field}
                             disabled={isFormLoading}
                             maxLength={12}

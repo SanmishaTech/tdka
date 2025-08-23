@@ -77,8 +77,8 @@ const competitionFormSchema = z.object({
     .min(1, "Competition name is required")
     .max(255, "Competition name must not exceed 255 characters"),
   maxPlayers: z.number()
-    .min(1, "Max players must be at least 1")
-    .max(1000, "Max players cannot exceed 1000"),
+    .min(10, "Max players must be at least 10")
+    .max(14, "Max players cannot exceed 14"),
   fromDate: z.string()
     .min(1, "From date is required")
     .max(255, "From date must not exceed 255 characters"),
@@ -160,7 +160,7 @@ const CompetitionForm = ({
     resolver: zodResolver(competitionFormSchema),
     defaultValues: {
       competitionName: "",
-      maxPlayers: 1,
+      maxPlayers: 10,
       fromDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
       toDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
       groups: [],
@@ -263,7 +263,7 @@ const CompetitionForm = ({
     if (competitionData && mode === "edit") {
       console.log("Setting form values..."); // Debug log
       form.setValue("competitionName", competitionData.competitionName || "");
-      form.setValue("maxPlayers", competitionData.maxPlayers || 1);
+      form.setValue("maxPlayers", competitionData.maxPlayers || 10);
       form.setValue("fromDate", competitionData.fromDate || "");
       form.setValue("toDate", competitionData.toDate || "");
 
@@ -511,11 +511,14 @@ const CompetitionForm = ({
                           {...field}
                           disabled={isFormLoading}
                           type="number"
-                          min="1"
-                          max="1000"
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          min="10"
+                          max="14"
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 10)}
                         />
                       </FormControl>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Allowed range: 10–14 Players + Coach + manager.
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -559,37 +562,15 @@ const CompetitionForm = ({
                           type="date"
                         />
                       </FormControl>
+                      {/* Age Category + Helper (inline) */}
                       <div className="text-xs text-muted-foreground mt-1">
-                        Select a reference date for age calculation. Players born on or after this date will be eligible for the calculated age category.
+                        {ageEligibilityDate && ageCategory ? `${ageCategory.category}, ` : ''}Select a reference date for age calculation. Players born on or after this date will be eligible for the calculated age category.
                       </div>
                       <FormMessage />
-                      {/* Age Category Display */}
-                      {ageEligibilityDate && ageCategory && (
-                        <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="text-sm font-medium text-blue-800">
-                              Calculated Age Category:
-                            </div>
-                            <div className="text-lg font-bold text-white bg-blue-600 px-3 py-1 rounded-full shadow-sm">
-                              {ageCategory.category}
-                            </div>
-                          </div>
-                          <div className="text-sm text-blue-700 mb-1">
-                            <strong>Eligibility:</strong> {ageCategory.description}
-                          </div>
-                          <div className="text-xs text-blue-600">
-                            <strong>Reference Date:</strong> {ageCategory.eligibilityDate}
-                          </div>
-                          <div className="text-xs text-blue-600 mt-1">
-                            <strong>Example:</strong> A player born on {ageCategory.eligibilityDate} would currently be {ageCategory.age} years old and qualify for this category.
-                          </div>
-                        </div>
-                      )}
                     </FormItem>
                   )}
                 />
               </div>
-
               {/* Groups Field - Multiselect */}
               <FormField
                 control={form.control}
