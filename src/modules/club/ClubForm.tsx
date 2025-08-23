@@ -161,15 +161,23 @@ const clubFormSchemaBase = z.object({
     .min(1, "Treasurer aadhar is required")
     .max(12, "Treasurer aadhar must not exceed 12 characters"),
   
-  // Coach details (optional)
-  coachName: z.string().max(255, "Coach name must not exceed 255 characters").optional(),
-  coachMobile: z.string().max(20, "Coach mobile must not exceed 20 characters").optional(),
+  // Coach details (name and mobile mandatory)
+  coachName: z.string()
+    .min(1, "Coach name is required")
+    .max(255, "Coach name must not exceed 255 characters"),
+  coachMobile: z.string()
+    .min(1, "Coach mobile is required")
+    .max(20, "Coach mobile must not exceed 20 characters"),
   coachEmail: z.string().email("Valid coach email is required").max(255, "Coach email must not exceed 255 characters").optional(),
   coachAadhar: z.string().max(12, "Coach aadhar must not exceed 12 characters").optional(),
   
-  // Manager details (optional)
-  managerName: z.string().max(255, "Manager name must not exceed 255 characters").optional(),
-  managerMobile: z.string().max(20, "Manager mobile must not exceed 20 characters").optional(),
+  // Manager details (name and mobile mandatory)
+  managerName: z.string()
+    .min(1, "Manager name is required")
+    .max(255, "Manager name must not exceed 255 characters"),
+  managerMobile: z.string()
+    .min(1, "Manager mobile is required")
+    .max(20, "Manager mobile must not exceed 20 characters"),
   managerEmail: z.string().email("Valid manager email is required").max(255, "Manager email must not exceed 255 characters").optional(),
   managerAadhar: z.string().max(12, "Manager aadhar must not exceed 12 characters").optional(),
 });
@@ -911,7 +919,7 @@ const ClubForm = ({
                     name="coachName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Coach Name</FormLabel>
+                        <FormLabel>Coach Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter coach name"
@@ -929,7 +937,7 @@ const ClubForm = ({
                     name="coachMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Coach Mobile</FormLabel>
+                        <FormLabel>Coach Mobile <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter coach mobile"
@@ -993,7 +1001,7 @@ const ClubForm = ({
                     name="managerName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Manager Name</FormLabel>
+                        <FormLabel>Manager Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter manager name"
@@ -1011,7 +1019,7 @@ const ClubForm = ({
                     name="managerMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Manager Mobile</FormLabel>
+                        <FormLabel>Manager Mobile <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter manager mobile"
