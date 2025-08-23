@@ -89,6 +89,13 @@ const CompetitionList = () => {
   const [existingObserver, setExistingObserver] = useState<any | null>(null);
   const [isFetchingObserver, setIsFetchingObserver] = useState(false);
 
+  // Referee dialog state
+  const [refereeDialogOpen, setRefereeDialogOpen] = useState(false);
+  const [refereeEmail, setRefereeEmail] = useState("");
+  const [refereePassword, setRefereePassword] = useState("");
+  const [existingReferee, setExistingReferee] = useState<any | null>(null);
+  const [isFetchingReferee, setIsFetchingReferee] = useState(false);
+
   // Fetch competitions
   const {
     data,
@@ -98,6 +105,40 @@ const CompetitionList = () => {
   } = useQuery({
     queryKey: ["competitions", page, limit, search, sortBy, sortOrder],
     queryFn: () => get("/competitions", { page, limit, search, sortBy, sortOrder }),
+  });
+
+  // Create/assign referee mutation
+  const createRefereeMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedCompetition) throw new Error("No competition selected");
+      const path = `/competitions/${selectedCompetition.id}/referee`;
+      if (existingReferee) {
+        // Update existing referee
+        return await put(path, {
+          email: refereeEmail || undefined,
+          password: refereePassword || undefined,
+        });
+      } else {
+        // Create new referee
+        return await post(path, {
+          email: refereeEmail,
+          password: refereePassword,
+        });
+      }
+    },
+    onSuccess: () => {
+      const updated = !!existingReferee;
+      toast.success(updated ? "Referee updated successfully" : "Referee created and assigned successfully");
+      setRefereeDialogOpen(false);
+      setRefereeEmail("");
+      setRefereePassword("");
+      setSelectedCompetition(null);
+      setExistingReferee(null);
+      queryClient.invalidateQueries({ queryKey: ["competitions"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || error?.errors?.message || (existingReferee ? "Failed to update referee" : "Failed to create referee"));
+    },
   });
 
   // Delete competition mutation
@@ -131,7 +172,7 @@ const CompetitionList = () => {
         });
       }
     },
-    onSuccess: (res: any) => {
+    onSuccess: () => {
       const updated = !!existingObserver;
       toast.success(updated ? "Observer updated successfully" : "Observer created and assigned successfully");
       setObserverDialogOpen(false);
@@ -151,6 +192,32 @@ const CompetitionList = () => {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
     setPage(1); // Reset to first page when search changes
+  };
+
+  // Handle open referee dialog
+  const handleOpenRefereeDialog = async (competition: any) => {
+    setSelectedCompetition(competition);
+    setRefereeEmail("");
+    setRefereePassword("");
+    setExistingReferee(null);
+    setRefereeDialogOpen(true);
+    // Fetch existing referee details if any
+    try {
+      setIsFetchingReferee(true);
+      const data: any = await get(`/competitions/${competition.id}/referee`);
+      const ref = data?.referee || data;
+      if (ref?.email) {
+        setExistingReferee(ref);
+        setRefereeEmail(ref.email);
+      } else {
+        setExistingReferee(null);
+      }
+    } catch (err: any) {
+      // 404 -> no referee assigned
+      setExistingReferee(null);
+    } finally {
+      setIsFetchingReferee(false);
+    }
   };
 
   // Handle sort
@@ -185,7 +252,14 @@ const CompetitionList = () => {
   // Handle view competition details - navigate to details page
   const handleViewDetails = (id: string) => {
     const isObserverRole = userRole === 'observer';
-    navigate(isObserverRole ? `/observercompetitions/${id}` : `/competitions/${id}`);
+    const isRefereeRole = userRole === 'referee';
+    navigate(
+      isObserverRole
+        ? `/observercompetitions/${id}`
+        : isRefereeRole
+        ? `/refereecompetitions/${id}`
+        : `/competitions/${id}`
+    );
   };
 
   // Handle open observer dialog
@@ -198,8 +272,8 @@ const CompetitionList = () => {
     // Fetch existing observer details if any
     try {
       setIsFetchingObserver(true);
-      const res: any = await get(`/competitions/${competition.id}/observer`);
-      const obs = res?.observer || res;
+      const data: any = await get(`/competitions/${competition.id}/observer`);
+      const obs = data?.observer || data;
       if (obs?.email) {
         setExistingObserver(obs);
         setObserverEmail(obs.email);
@@ -374,6 +448,17 @@ const CompetitionList = () => {
                               <DropdownMenuItem
                                 onSelect={(e) => {
                                   e.preventDefault();
+                                  handleOpenRefereeDialog(competition);
+                                }}
+                              >
+                                <UserPlus className="h-4 w-4" />
+                                Set referee
+                              </DropdownMenuItem>
+                            )}
+                            {isAdmin && (
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
                                   handleEdit(competition.id.toString());
                                 }}
                               >
@@ -530,6 +615,66 @@ const CompetitionList = () => {
                 <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
               )}
               {existingObserver ? 'Update Observer' : 'Create Observer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Referee Creation Dialog */}
+      <Dialog open={refereeDialogOpen} onOpenChange={setRefereeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedCompetition ? `${existingReferee ? 'Update' : 'Set'} Referee - ${selectedCompetition.competitionName}` : "Set Referee"}
+            </DialogTitle>
+            <DialogDescription>
+              {existingReferee
+                ? 'A referee is already assigned. You can update the email and/or password.'
+                : 'Create a single referee account for this competition. Provide an email and password. Only one referee is allowed per competition.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="referee-email">Email</Label>
+              <Input
+                id="referee-email"
+                type="email"
+                placeholder={isFetchingReferee ? 'Loading...' : 'referee@example.com'}
+                value={refereeEmail}
+                onChange={(e) => setRefereeEmail(e.target.value)}
+                disabled={isFetchingReferee || createRefereeMutation.isPending}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="referee-password">Password</Label>
+              <Input
+                id="referee-password"
+                type="password"
+                placeholder={existingReferee ? 'Leave blank to keep current password' : 'Enter a password'}
+                value={refereePassword}
+                onChange={(e) => setRefereePassword(e.target.value)}
+                disabled={createRefereeMutation.isPending}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefereeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createRefereeMutation.mutate()}
+              disabled={
+                createRefereeMutation.isPending ||
+                !refereeEmail ||
+                (!existingReferee && !refereePassword) // password required only when creating
+              }
+            >
+              {(createRefereeMutation.isPending || isFetchingReferee) && (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {existingReferee ? 'Update Referee' : 'Create Referee'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -282,6 +282,32 @@ const App = () => {
               }
             />
 
+            {/* Referee routes mirroring observer separation */}
+            <Route
+              path="/refereecompetitions"
+              element={
+                <ProtectedRoute roles={['referee']}>
+                  <CompetitionList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/refereecompetitions/:id"
+              element={
+                <ProtectedRoute roles={['referee']}>
+                  <CompetitionDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/refereecompetitions/:competitionId/clubs/:clubId"
+              element={
+                <ProtectedRoute roles={['referee']}>
+                  <CompetitionClubDetails />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/registers"
               element={

@@ -83,6 +83,15 @@ const initialData = {
         },
       ],
     },
+    referee: {
+      projects: [
+        {
+          name: "Competition",
+          url: "/refereecompetitions",
+          icon: FileText,
+        },
+      ],
+    },
   },
   user: {
     name: "",

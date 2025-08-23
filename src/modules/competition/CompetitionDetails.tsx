@@ -36,6 +36,7 @@ const CompetitionDetails = () => {
   const isAdmin = userRole === 'admin';
   const isClubAdmin = userRole === 'clubadmin';
   const isObserver = userRole === 'observer';
+  const isReferee = userRole === 'referee';
 
   // Fetch competition details
   const {
@@ -66,7 +67,13 @@ const CompetitionDetails = () => {
 
   // Handle view club competition details
   const handleViewClubDetails = (clubId: number) => {
-    navigate(isObserver ? `/observercompetitions/${id}/clubs/${clubId}` : `/competitions/${id}/clubs/${clubId}`);
+    navigate(
+      isObserver
+        ? `/observercompetitions/${id}/clubs/${clubId}`
+        : isReferee
+        ? `/refereecompetitions/${id}/clubs/${clubId}`
+        : `/competitions/${id}/clubs/${clubId}`
+    );
   };
 
   // Handle PDF download for club details and players
@@ -175,7 +182,7 @@ const CompetitionDetails = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(isObserver ? "/observercompetitions" : "/competitions")}
+          onClick={() => navigate(isObserver ? "/observercompetitions" : isReferee ? "/refereecompetitions" : "/competitions")}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Competitions

@@ -113,6 +113,8 @@ const Login = () => {
       const role = data.user.role;
       if (role && role.toLowerCase() === "observer") {
         navigate("/observercompetitions");
+      } else if (role && role.toLowerCase() === "referee") {
+        navigate("/refereecompetitions");
       } else if (role === "clubadmin" || role === "CLUB") {
         navigate("/players");
       } else {
