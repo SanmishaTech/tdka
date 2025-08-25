@@ -22,11 +22,12 @@ import {
 // Services and utilities
 import { post, put, get } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
-import { Taluka, TalukaFormData } from "./types";
+import { Taluka } from "./types";
 
 // Create schema for taluka form
 const talukaFormSchema = z.object({
-  number: z.number()
+  number: z
+    .number()
     .min(1, "Number must be at least 1")
     .max(99, "Number must be at most 99")
     .int("Number must be a whole number"),
@@ -95,6 +96,34 @@ const TalukaForm = ({
     },
   });
 
+  // Prefill next available number in create mode
+  const { data: talukaListForMax } = useQuery({
+    queryKey: ["talukas", "max-number"],
+    queryFn: async () => {
+      const res = await get("/talukas", {
+        limit: 1,
+        page: 1,
+        sortBy: "number",
+        sortOrder: "desc",
+      });
+      return res;
+    },
+    enabled: mode === "create",
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (mode === "create" && talukaListForMax) {
+      const highest = talukaListForMax.talukas?.[0]?.number ?? 0;
+      const next = Math.min(highest + 1, 99);
+      // Only set if user hasn't typed anything yet
+      const current = form.getValues("number");
+      if (current === undefined || current === null || current === ("" as any)) {
+        form.setValue("number", next, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+      }
+    }
+  }, [talukaListForMax, mode, form]);
+
   // Query for fetching taluka data in edit mode
   const { data: talukaData, isLoading: isFetchingTaluka, error: fetchError } = useQuery({
     queryKey: ["taluka", talukaId],
@@ -115,7 +144,9 @@ const TalukaForm = ({
     console.log("Taluka data received:", talukaData); // Debug log
     if (talukaData && mode === "edit") {
       console.log("Setting form values..."); // Debug log
-      form.setValue("number", talukaData.number || 0);
+      if (talukaData.number !== undefined && talukaData.number !== null) {
+        form.setValue("number", talukaData.number);
+      }
       form.setValue("abbreviation", talukaData.abbreviation || "");
       form.setValue("talukaName", talukaData.talukaName || "");
     }

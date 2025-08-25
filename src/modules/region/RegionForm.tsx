@@ -29,11 +29,12 @@ import {
 // Services and utilities
 import { post, put, get } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
-import { Region, RegionFormData, Taluka } from "./types";
+import { Region, Taluka } from "./types";
 
 // Create schema for region form
 const regionFormSchema = z.object({
-  number: z.number()
+  number: z
+    .number()
     .min(1, "Number must be at least 1")
     .max(99, "Number must be at most 99")
     .int("Number must be a whole number"),
@@ -106,6 +107,33 @@ const RegionForm = ({
     },
   });
 
+  // Prefill next available number in create mode
+  const { data: regionListForMax } = useQuery({
+    queryKey: ["regions", "max-number"],
+    queryFn: async () => {
+      const res = await get("/regions", {
+        limit: 1,
+        page: 1,
+        sortBy: "number",
+        sortOrder: "desc",
+      });
+      return res;
+    },
+    enabled: mode === "create",
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (mode === "create" && regionListForMax) {
+      const highest = regionListForMax.regions?.[0]?.number ?? 0;
+      const next = Math.min(highest + 1, 99);
+      const current = form.getValues("number");
+      if (current === undefined || current === null || current === ("" as any)) {
+        form.setValue("number", next, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+      }
+    }
+  }, [regionListForMax, mode, form]);
+
   // Query for fetching talukas for dropdown
   const { data: talukas, isLoading: isLoadingTalukas } = useQuery<Taluka[]>({
     queryKey: ["talukas-dropdown"],
@@ -136,10 +164,14 @@ const RegionForm = ({
     console.log("Region data received:", regionData); // Debug log
     if (regionData && mode === "edit") {
       console.log("Setting form values..."); // Debug log
-      form.setValue("number", regionData.number || 0);
+      if (regionData.number !== undefined && regionData.number !== null) {
+        form.setValue("number", regionData.number);
+      }
       form.setValue("abbreviation", regionData.abbreviation || "");
       form.setValue("regionName", regionData.regionName || "");
-      form.setValue("talukaId", regionData.talukaId || 0);
+      if (regionData.talukaId !== undefined && regionData.talukaId !== null) {
+        form.setValue("talukaId", regionData.talukaId);
+      }
     }
   }, [regionData, mode, form]);
 

@@ -97,88 +97,170 @@ const clubFormSchemaBase = z.object({
   clubName: z.string()
     .min(1, "Club name is required")
     .max(255, "Club name must not exceed 255 characters"),
-  affiliationNumber: z.string()
-    .min(1, "Affiliation number is required")
-    .max(255, "Affiliation number must not exceed 255 characters"),
+  affiliationNumber: z
+    .union([
+      z.string().max(255, "Affiliation number must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
   regionId: z.number()
     .min(1, "Please select a region"),
-  city: z.string()
-    .min(1, "City is required")
-    .max(255, "City must not exceed 255 characters"),
-  address: z.string()
-    .min(1, "Address is required")
-    .max(255, "Address must not exceed 255 characters"),
-  mobile: z.string()
-    .min(1, "Mobile number is required")
-    .max(255, "Mobile number must not exceed 255 characters"),
+  city: z
+    .union([
+      z.string().max(255, "City must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  address: z
+    .union([
+      z.string().max(255, "Address must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  mobile: z
+    .union([
+      z.string().max(255, "Mobile number must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
   email: z.string()
     .email("Valid email is required")
     .max(255, "Email must not exceed 255 characters"),
   role: z.string().default("clubadmin"),
   
   // President details (all fields mandatory)
-  presidentName: z.string()
-    .min(1, "President name is required")
-    .max(255, "President name must not exceed 255 characters"),
-  presidentMobile: z.string()
-    .min(1, "President mobile is required")
-    .max(20, "President mobile must not exceed 20 characters"),
-  presidentEmail: z.string()
-    .min(1, "President email is required")
-    .email("Valid president email is required")
-    .max(255, "President email must not exceed 255 characters"),
-  presidentAadhar: z.string()
-    .min(1, "President aadhar is required")
-    .max(12, "President aadhar must not exceed 12 characters"),
-    
+  presidentName: z
+    .union([
+      z.string().max(255, "President name must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  presidentMobile: z
+    .union([
+      z.string().max(20, "President mobile must not exceed 20 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  presidentEmail: z
+    .union([
+      z.string().email("Valid president email is required").max(255, "President email must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  presidentAadhar: z
+    .union([
+      z.string().max(12, "President aadhar must not exceed 12 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  
   // Secretary details (all fields mandatory)
-  secretaryName: z.string()
-    .min(1, "Secretary name is required")
-    .max(255, "Secretary name must not exceed 255 characters"),
-  secretaryMobile: z.string()
-    .min(1, "Secretary mobile is required")
-    .max(20, "Secretary mobile must not exceed 20 characters"),
-  secretaryEmail: z.string()
-    .min(1, "Secretary email is required")
-    .email("Valid secretary email is required")
-    .max(255, "Secretary email must not exceed 255 characters"),
-  secretaryAadhar: z.string()
-    .min(1, "Secretary aadhar is required")
-    .max(12, "Secretary aadhar must not exceed 12 characters"),
-    
+  secretaryName: z
+    .union([
+      z.string().max(255, "Secretary name must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  secretaryMobile: z
+    .union([
+      z.string().max(20, "Secretary mobile must not exceed 20 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  secretaryEmail: z
+    .union([
+      z.string().email("Valid secretary email is required").max(255, "Secretary email must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  secretaryAadhar: z
+    .union([
+      z.string().max(12, "Secretary aadhar must not exceed 12 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  
   // Treasurer details (all fields mandatory)
-  treasurerName: z.string()
-    .min(1, "Treasurer name is required")
-    .max(255, "Treasurer name must not exceed 255 characters"),
-  treasurerMobile: z.string()
-    .min(1, "Treasurer mobile is required")
-    .max(20, "Treasurer mobile must not exceed 20 characters"),
-  treasurerEmail: z.string()
-    .min(1, "Treasurer email is required")
-    .email("Valid treasurer email is required")
-    .max(255, "Treasurer email must not exceed 255 characters"),
-  treasurerAadhar: z.string()
-    .min(1, "Treasurer aadhar is required")
-    .max(12, "Treasurer aadhar must not exceed 12 characters"),
+  treasurerName: z
+    .union([
+      z.string().max(255, "Treasurer name must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  treasurerMobile: z
+    .union([
+      z.string().max(20, "Treasurer mobile must not exceed 20 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  treasurerEmail: z
+    .union([
+      z.string().email("Valid treasurer email is required").max(255, "Treasurer email must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  treasurerAadhar: z
+    .union([
+      z.string().max(12, "Treasurer aadhar must not exceed 12 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
   
   // Coach details (name and mobile mandatory)
-  coachName: z.string()
-    .min(1, "Coach name is required")
-    .max(255, "Coach name must not exceed 255 characters"),
-  coachMobile: z.string()
-    .min(1, "Coach mobile is required")
-    .max(20, "Coach mobile must not exceed 20 characters"),
-  coachEmail: z.string().email("Valid coach email is required").max(255, "Coach email must not exceed 255 characters").optional(),
+  // Coach details (optional)
+  coachName: z
+    .union([
+      z.string().max(255, "Coach name must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  coachMobile: z
+    .union([
+      z.string().max(20, "Coach mobile must not exceed 20 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
+  coachEmail: z
+    .union([
+      z.string().email("Valid coach email is required").max(255, "Coach email must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
   coachAadhar: z.string().max(12, "Coach aadhar must not exceed 12 characters").optional(),
   
-  // Manager details (name and mobile mandatory)
+  // Manager details (optional)
   managerName: z.string()
-    .min(1, "Manager name is required")
-    .max(255, "Manager name must not exceed 255 characters"),
+    .max(255, "Manager name must not exceed 255 characters")
+    .optional(),
   managerMobile: z.string()
-    .min(1, "Manager mobile is required")
-    .max(20, "Manager mobile must not exceed 20 characters"),
-  managerEmail: z.string().email("Valid manager email is required").max(255, "Manager email must not exceed 255 characters").optional(),
+    .max(20, "Manager mobile must not exceed 20 characters")
+    .optional(),
+  managerEmail: z
+    .union([
+      z.string().email("Valid manager email is required").max(255, "Manager email must not exceed 255 characters"),
+      z.literal("")
+    ])
+    .optional()
+    .transform((v) => (v === "" ? undefined : v)),
   managerAadhar: z.string().max(12, "Manager aadhar must not exceed 12 characters").optional(),
 });
 
@@ -501,7 +583,7 @@ const ClubForm = ({
               name="affiliationNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Affiliation Number <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Affiliation Number</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Enter affiliation number"
@@ -559,7 +641,7 @@ const ClubForm = ({
             name="city"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>City <span className="text-red-500">*</span></FormLabel>
+                <FormLabel>City</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Enter city"
@@ -578,7 +660,7 @@ const ClubForm = ({
             name="address"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Address <span className="text-red-500">*</span></FormLabel>
+                <FormLabel>Address</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Enter address"
@@ -599,7 +681,7 @@ const ClubForm = ({
               name="mobile"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mobile <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Mobile</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Enter mobile number"
@@ -673,7 +755,7 @@ const ClubForm = ({
                     name="presidentName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>President Name <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>President Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter president name"
@@ -691,7 +773,7 @@ const ClubForm = ({
                     name="presidentMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>President Mobile <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>President Mobile</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter president mobile"
@@ -711,7 +793,7 @@ const ClubForm = ({
                     name="presidentEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>President Email <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>President Email</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter president email"
@@ -730,7 +812,7 @@ const ClubForm = ({
                     name="presidentAadhar"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>President Aadhar Number <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>President Aadhar Number</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter president aadhar number"
@@ -755,7 +837,7 @@ const ClubForm = ({
                     name="secretaryName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Name <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Secretary Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary name"
@@ -773,7 +855,7 @@ const ClubForm = ({
                     name="secretaryMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Mobile <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Secretary Mobile</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary mobile"
@@ -793,7 +875,7 @@ const ClubForm = ({
                     name="secretaryEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Email <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Secretary Email</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary email"
@@ -812,7 +894,7 @@ const ClubForm = ({
                     name="secretaryAadhar"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Secretary Aadhar Number <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Secretary Aadhar Number</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter secretary aadhar number"
@@ -837,7 +919,7 @@ const ClubForm = ({
                     name="treasurerName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Name <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Treasurer Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer name"
@@ -855,7 +937,7 @@ const ClubForm = ({
                     name="treasurerMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Mobile <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Treasurer Mobile</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer mobile"
@@ -875,7 +957,7 @@ const ClubForm = ({
                     name="treasurerEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Email <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Treasurer Email</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer email"
@@ -894,7 +976,7 @@ const ClubForm = ({
                     name="treasurerAadhar"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Treasurer Aadhar Number <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Treasurer Aadhar Number</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter treasurer aadhar number"
@@ -919,7 +1001,7 @@ const ClubForm = ({
                     name="coachName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Coach Name <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Coach Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter coach name"
@@ -937,7 +1019,7 @@ const ClubForm = ({
                     name="coachMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Coach Mobile <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Coach Mobile</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter coach mobile"
@@ -1001,7 +1083,7 @@ const ClubForm = ({
                     name="managerName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Manager Name <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Manager Name</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter manager name"
@@ -1019,7 +1101,7 @@ const ClubForm = ({
                     name="managerMobile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Manager Mobile <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel>Manager Mobile</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="Enter manager mobile"
