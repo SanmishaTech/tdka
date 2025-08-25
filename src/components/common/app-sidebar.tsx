@@ -9,7 +9,10 @@ import {
 } from "lucide-react";
 import { NavProjects } from "@/components/common/nav-projects";
 import { NavUser } from "@/components/common/nav-user";
-import { ThemeToggle } from "@/components/common/theme-toggle";
+import { Sun, Moon, PanelLeft } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
+import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 // import { TeamSwitcher } from "@/components/common/team-switcher"
 import {
   Sidebar,
@@ -119,10 +122,30 @@ const initialData = {
 };
 
 function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { toggleSidebar, state } = useSidebar();
+  const [isLogoHovered, setIsLogoHovered] = React.useState(false);
+  const [showLogo, setShowLogo] = React.useState(false);
   const [data, setData] = React.useState({
     ...initialData,
     projects: [] as typeof initialData.roles.admin.projects,
   });
+  
+  const isCollapsed = state === "collapsed";
+
+  // Reset logo hover state when sidebar state changes
+  React.useEffect(() => {
+    setIsLogoHovered(false);
+    
+    if (isCollapsed) {
+      // Delay logo appearance to sync with sidebar collapse animation
+      const timer = setTimeout(() => {
+        setShowLogo(true);
+      }, 200); // Delay to match sidebar animation timing
+      return () => clearTimeout(timer);
+    } else {
+      setShowLogo(false);
+    }
+  }, [isCollapsed]);
 
   // Dark mode toggle state and handlers
   const [isDarkMode, setIsDarkMode] = React.useState(() => {
@@ -201,25 +224,100 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         {/* <TeamSwitcher teams={data.teams} /> */}
-        <SidebarMenu className="flex  ">
+        <SidebarMenu className="flex">
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-             <div className="flex items-center gap-2  justify-between">
-             <a
-              className="flex items-center gap-2"
-              href="#"
-              >
-                <img src="/kabaddi-logo.svg" alt="Kabaddi Manager logo" className="h-6 w-6" />
-                <span className="text-base font-semibold">{appName}</span>
-              </a>
-              <ThemeToggle isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
-              
-             </div>
-            </SidebarMenuButton>
-            
+            {isCollapsed ? (
+              // Collapsed sidebar: Show logo that flips to expand button on hover
+              <div className="flex items-center justify-center px-2 py-2">
+                <div 
+                  className={`transition-all duration-500 ease-out ${
+                    showLogo 
+                      ? 'opacity-100 translate-x-0 scale-100' 
+                      : 'opacity-0 translate-x-4 scale-90'
+                  }`}
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleSidebar}
+                    onMouseEnter={() => setIsLogoHovered(true)}
+                    onMouseLeave={() => setIsLogoHovered(false)}
+                    aria-label="Expand sidebar"
+                    className="h-11 w-11 p-2 hover:bg-transparent transition-colors duration-200"
+                  >
+                    <div className="relative w-7 h-7">
+                      {/* Logo - visible by default, fades out on hover */}
+                      <div 
+                        className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-in-out ${
+                          isLogoHovered ? 'opacity-0 rotate-180 scale-75' : 'opacity-100 rotate-0 scale-100'
+                        }`}
+                        style={{ zIndex: isLogoHovered ? 1 : 2 }}
+                      >
+                        <img
+                          src="/TDKA logo.png"
+                          alt="TDKA logo"
+                          className="h-7 w-7 transition-transform duration-300"
+                          style={{ filter: "brightness(0) invert(1)" }}
+                        />
+                      </div>
+                      {/* Expand Icon - hidden by default, fades in on hover */}
+                      <div 
+                        className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-in-out ${
+                          isLogoHovered ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-180 scale-75'
+                        }`}
+                        style={{ zIndex: isLogoHovered ? 2 : 1 }}
+                      >
+                        <PanelLeft className="h-7 w-7 text-white transition-transform duration-300" />
+                      </div>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // Expanded sidebar: Show logo + app name + buttons
+              <div className="flex items-center gap-2 justify-between px-2 py-1.5">
+                <SidebarMenuButton
+                  asChild
+                  className="flex-1 data-[slot=sidebar-menu-button]:!p-0 hover:bg-transparent"
+                >
+                  <a
+                    className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent/50 text-sidebar-foreground hover:text-sidebar-foreground"
+                    href="#"
+                  >
+                    <img
+                      src="/TDKA logo.png"
+                      alt="TDKA logo"
+                      className="h-6 w-6"
+                      style={{ filter: "brightness(0) invert(1)" }}
+                    />
+                    <span className="text-base font-semibold">{appName}</span>
+                  </a>
+                </SidebarMenuButton>
+                <div className="flex items-center gap-1">
+                  <Toggle
+                    pressed={isDarkMode}
+                    onPressedChange={(pressed) => {
+                      setIsDarkMode(pressed);
+                      localStorage.setItem("theme", pressed ? "dark" : "light");
+                    }}
+                    aria-label="Toggle dark mode"
+                    size="sm"
+                    className="h-6 w-6 p-1 shrink-0"
+                  >
+                    {isDarkMode ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+                  </Toggle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleSidebar}
+                    aria-label="Collapse sidebar"
+                    className="h-6 w-6 p-1 shrink-0"
+                  >
+                    <PanelLeft className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </SidebarMenuItem>
           {/* <SidebarMenuItem>
             <SidebarMenuButton

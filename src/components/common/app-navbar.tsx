@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, Menu, Trash } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+// removed unused Tooltip imports
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/common/theme-toggle";
 import {
@@ -53,7 +53,12 @@ export const AppNavbar = ({ userData, isDarkMode, toggleDarkMode }: AppNavbarPro
       <div className="flex items-center gap-4">
         {/* Logo */}
         <Link to="/dashboard" className="flex items-center gap-2">
-          <img src="/credisphere-logo.svg" alt="CrediSphere Logo" className="h-8 w-8" />
+          <img
+            src="/TDKA logo.png"
+            alt="TDKA logo"
+            className="h-8 w-8"
+            style={{ filter: "brightness(0) invert(1)" }}
+          />
           <span className="font-bold text-lg hidden md:block lg:block">CrediSphere</span>
         </Link>
         

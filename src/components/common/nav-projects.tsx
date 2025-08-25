@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   Folder,
   Forward,
@@ -15,6 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -34,22 +41,61 @@ export function NavProjects({
     icon: LucideIcon;
   }[];
 }) {
-  const { isMobile } = useSidebar();
+  const { isMobile, state } = useSidebar();
+  const [showItems, setShowItems] = React.useState(false);
+  
+  const isCollapsed = state === "collapsed";
+
+  // Control animation for navigation items when sidebar state changes
+  React.useEffect(() => {
+    if (isCollapsed) {
+      // Delay items appearance to sync with sidebar collapse + logo animation
+      const timer = setTimeout(() => {
+        setShowItems(true);
+      }, 400); // Start after logo animation begins
+      return () => clearTimeout(timer);
+    } else {
+      setShowItems(false);
+    }
+  }, [isCollapsed]);
 
   if (!projects.length) return null;
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Clubs</SidebarGroupLabel>
-      <SidebarMenu>
-        {projects.map((item) => (
-          <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
-              <a href={item.url}>
-                <item.icon />
-                <span>{item.name}</span>
-              </a>
-            </SidebarMenuButton>
+    <TooltipProvider>
+      <SidebarGroup>
+        <SidebarGroupLabel>Clubs</SidebarGroupLabel>
+        <SidebarMenu>
+          {projects.map((item, index) => (
+            <SidebarMenuItem key={item.name}>
+              <div
+                className={`transition-all duration-500 ease-out ${
+                  showItems && isCollapsed
+                    ? 'opacity-100 translate-x-0 scale-100'
+                    : isCollapsed
+                    ? 'opacity-0 translate-x-4 scale-90'
+                    : 'opacity-100 translate-x-0 scale-100'
+                }`}
+                style={{
+                  transitionDelay: isCollapsed && showItems ? `${index * 100}ms` : '0ms'
+                }}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton asChild>
+                      <a href={item.url}>
+                        <item.icon />
+                        <span>{item.name}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                {isCollapsed && (
+                  <TooltipContent side="right">
+                    <p>{item.name}</p>
+                  </TooltipContent>
+                )}
+                </Tooltip>
+              </div>
             <DropdownMenu>
               {/* <DropdownMenuTrigger asChild>
                 <SidebarMenuAction showOnHover>
@@ -87,5 +133,6 @@ export function NavProjects({
         </SidebarMenuItem> */}
       </SidebarMenu>
     </SidebarGroup>
+    </TooltipProvider>
   );
 }

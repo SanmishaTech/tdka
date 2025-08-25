@@ -562,9 +562,9 @@ const CompetitionForm = ({
                           type="date"
                         />
                       </FormControl>
-                      {/* Age Category + Helper (inline) */}
+                      {/* Computed Age + Helper (inline) */}
                       <div className="text-xs text-muted-foreground mt-1">
-                        {ageEligibilityDate && ageCategory ? `${ageCategory.category}, ` : ''}Select a reference date for age calculation. Players born on or after this date will be eligible for the calculated age category.
+                        {ageEligibilityDate && ageCategory ? `Age: ${ageCategory.age}, ` : ''}Select a reference date for age calculation. Players born on or after this date will be eligible for the calculated age category.
                       </div>
                       <FormMessage />
                     </FormItem>

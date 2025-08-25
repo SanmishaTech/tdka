@@ -2,23 +2,22 @@ export const appName = import.meta.env.VITE_APP_NAME || "CrediSphere";
 
 // Get the current hostname (for production) or use environment variable
 const getBackendUrl = () => {
-  // In production build
-  if (import.meta.env.PROD) {
-    // If we have an explicit environment variable, use that
-    if (import.meta.env.VITE_BACKEND_URL) {
-      return import.meta.env.VITE_BACKEND_URL;
-    }
+  // Use explicit environment variable in any mode (dev/prod)
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return import.meta.env.VITE_BACKEND_URL;
+  }
 
-    // Otherwise, derive from current hostname
+  // In production build without explicit env, derive from current hostname
+  if (import.meta.env.PROD) {
     const hostname = window.location.hostname;
-    console.log(hostname);
     // If deployed to IP address or domain, use that
     if (hostname !== "localhost" && hostname !== "127.0.0.1") {
       return `http://${hostname}`;
     }
   }
-  // Default for development
-  return "http://localhost:3000/";
+
+  // Default for development: use relative base so Vite proxy handles /api
+  return "";
 };
 
 export const backendUrl = getBackendUrl();
