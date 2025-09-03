@@ -20,7 +20,9 @@ import {
   Trash2,
   ChevronUp,
   ChevronDown,
-  PlusCircle
+  PlusCircle,
+  Upload,
+  Download
 } from "lucide-react";
 import {
   AlertDialog,
@@ -34,7 +36,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import CustomPagination from "@/components/common/custom-pagination";
-import { get, del } from "@/services/apiService";
+import { get, del, postupload } from "@/services/apiService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 // Remove unused imports since we're using navigation now
 // import CreateClub from "./CreateClub";
 // import EditClub from "./EditClub";
@@ -47,6 +57,9 @@ const ClubList = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Fetch clubs
   const {
@@ -58,6 +71,75 @@ const ClubList = () => {
     queryKey: ["clubs", page, limit, search, sortBy, sortOrder],
     queryFn: () => get("/clubs", { page, limit, search, sortBy, sortOrder }),
   });
+
+  // Import clubs mutation
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return await postupload("/clubs/import", fd);
+    },
+    onSuccess: (res: any) => {
+      const created = res?.summary?.created ?? 0;
+      const errors = res?.summary?.errors ?? 0;
+      toast.success(`Import complete. Created: ${created}. Errors: ${errors}.`);
+      if (errors > 0) {
+        console.warn("Club import errors:", res?.errors);
+      }
+      queryClient.invalidateQueries({ queryKey: ["clubs"] });
+      setSelectedFile(null);
+      setImportOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Import failed");
+    },
+  });
+
+  const triggerFileDialog = () => fileInputRef.current?.click();
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    // reset input so selecting the same file again still fires change
+    e.target.value = "";
+  };
+
+  const handleStartImport = () => {
+    if (!selectedFile) {
+      toast.error("Please choose an Excel file to import");
+      return;
+    }
+    importMutation.mutate(selectedFile);
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const res = await get("/clubs/import/template", undefined, { responseType: "blob" });
+      const blob = res.data as Blob;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "TDKA_Clubs_Import_Template.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to download template");
+    }
+  };
+
+  // Fetch regions for mapping regionId -> regionName
+  const { data: regions } = useQuery({
+    queryKey: ["regions"],
+    queryFn: () => get("/clubs/regions"),
+  });
+
+  const regionNameById = React.useMemo(() => {
+    const map = new Map<number, string>();
+    regions?.forEach((r: any) => map.set(r.id, r.regionName));
+    return map;
+  }, [regions]);
 
   // Delete club mutation
   const deleteMutation = useMutation({
@@ -159,6 +241,16 @@ const ClubList = () => {
               <PlusCircle className="mr-2 h-4 w-4" />
               Add
             </Button>
+            <Button
+              onClick={() => setImportOpen(true)}
+              size="sm"
+              variant="secondary"
+            >
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Import Excel
+              </>
+            </Button>
           </div>
 
 
@@ -167,19 +259,17 @@ const ClubList = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead>Affiliation Number</TableHead>
                   <TableHead>Unique Number</TableHead>
                   <TableHead>Club Name</TableHead>
 
-                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("clubName")}>
-                    City
-                    {sortBy === "clubName" && (
+                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("regionId")}>
+                    Region
+                    {sortBy === "regionId" && (
                       <span className="ml-2 inline-block">
                         {sortOrder === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </span>
                     )}
                   </TableHead>
-                  <TableHead>Mobile</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -187,25 +277,23 @@ const ClubList = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading clubs...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.clubs?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       No clubs found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   data?.clubs?.map((club: any) => (
                     <TableRow key={club.id}>
-                      <TableCell>{club.affiliationNumber}</TableCell>
                       <TableCell>{club.uniqueNumber || '-'}</TableCell>
                       <TableCell>{club.clubName}</TableCell>
-                      <TableCell>{club.city}</TableCell>
-                      <TableCell>{club.mobile}</TableCell>
+                      <TableCell>{regionNameById.get(club.regionId) || '-'}</TableCell>
                       <TableCell>{club.email}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -293,6 +381,61 @@ const ClubList = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Import Dialog */}
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) setSelectedFile(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Import Clubs from Excel</DialogTitle>
+            <DialogDescription>
+              Prepare your Excel file with the following columns:
+              <br />
+              <span className="font-medium">Club Name</span>, <span className="font-medium">Email</span>, <span className="font-medium">Region</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={downloadTemplate}>
+                <Download className="mr-2 h-4 w-4" />
+                Download Template
+              </Button>
+            </div>
+
+            <div className="border rounded p-3 flex items-center justify-between">
+              <div className="text-sm truncate">
+                Selected file: {selectedFile ? selectedFile.name : <span className="text-muted-foreground">None</span>}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button type="button" variant="secondary" onClick={triggerFileDialog} disabled={importMutation.isPending}>
+                Choose File
+              </Button>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setImportOpen(false)} disabled={importMutation.isPending}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleStartImport} disabled={!selectedFile || importMutation.isPending}>
+              {importMutation.isPending ? (
+                <>
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                "Start Import"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

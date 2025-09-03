@@ -115,18 +115,20 @@ const clubFormSchemaBase = z.object({
     .transform((v) => (v === "" ? undefined : v)),
   address: z
     .union([
-      z.string().max(255, "Address must not exceed 255 characters"),
-      z.literal("")
+      z.string().max(500, "Address must not exceed 500 characters"),
+      z.literal(""),
+      z.null(),
     ])
     .optional()
-    .transform((v) => (v === "" ? undefined : v)),
+    .transform((v) => (v === "" || v === null ? undefined : v)),
   mobile: z
     .union([
-      z.string().max(255, "Mobile number must not exceed 255 characters"),
-      z.literal("")
+      z.string().max(20, "Mobile number must not exceed 20 characters"),
+      z.literal(""),
+      z.null(),
     ])
     .optional()
-    .transform((v) => (v === "" ? undefined : v)),
+    .transform((v) => (v === "" || v === null ? undefined : v)),
   email: z.string()
     .email("Valid email is required")
     .max(255, "Email must not exceed 255 characters"),
@@ -402,8 +404,8 @@ const ClubForm = ({
         affiliationNumber: clubData.affiliationNumber,
         regionId: clubData.regionId,
         city: clubData.city,
-        address: clubData.address,
-        mobile: clubData.mobile,
+        address: clubData.address || "",
+        mobile: clubData.mobile || "",
         email: clubData.email,
         password: "",
         role: "clubadmin",
