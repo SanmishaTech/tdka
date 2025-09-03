@@ -6,6 +6,7 @@ import {
   GalleryVerticalEnd,
   Map,
   FileText,
+  LayoutDashboard,
 } from "lucide-react";
 import { NavProjects } from "@/components/common/nav-projects";
 import { NavUser } from "@/components/common/nav-user";
@@ -32,6 +33,11 @@ const initialData = {
     
     admin: {
       projects: [
+        {
+          name: "Dashboard",
+          url: "/dashboard",
+          icon: LayoutDashboard,
+        },
         {
           name: "Taluka",
           url: "/talukas",
@@ -63,7 +69,11 @@ const initialData = {
     },
     clubadmin: {
       projects: [
-      
+        {
+          name: "Dashboard",
+          url: "/dashboard",
+          icon: LayoutDashboard,
+        },
         {
           name: "Player",
           url: "/players",

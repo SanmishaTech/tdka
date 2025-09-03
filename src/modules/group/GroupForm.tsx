@@ -46,8 +46,8 @@ const groupFormSchema = z.object({
   groupName: z.string()
     .min(1, "Group name is required")
     .max(255, "Group name must not exceed 255 characters"),
-  gender: z.enum(["Men (A)", "Men (B)", "Women", "Boys", "Girls"], {
-    errorMap: () => ({ message: "Gender must be one of: Men (A), Men (B), Women, Boys, Girls" }),
+  gender: z.enum(["Men", "Women", "Boys", "Girls"], {
+    errorMap: () => ({ message: "Gender must be one of: Men, Women, Boys, Girls" }),
   }),
   age: z.string()
     .min(1, "Age limit is required")
@@ -130,9 +130,14 @@ const GroupForm = ({
     if (groupData && mode === "edit") {
       console.log("Setting form values..."); // Debug log
       form.setValue("groupName", groupData.groupName || "");
-      const allowedGenders = ["Men (A)", "Men (B)", "Women", "Boys", "Girls"] as const;
-      if (groupData.gender && (allowedGenders as readonly string[]).includes(groupData.gender)) {
-        form.setValue("gender", groupData.gender as "Men (A)" | "Men (B)" | "Women" | "Boys" | "Girls");
+      const allowedGenders = ["Men", "Women", "Boys", "Girls"] as const;
+      if (groupData.gender) {
+        if ((allowedGenders as readonly string[]).includes(groupData.gender)) {
+          form.setValue("gender", groupData.gender as "Men" | "Women" | "Boys" | "Girls");
+        } else if (["Men (A)", "Men (B)"].includes(groupData.gender)) {
+          // Map legacy values to new consolidated "Men" option
+          form.setValue("gender", "Men");
+        }
       }
       form.setValue("age", groupData.age || "");
     }
@@ -271,8 +276,7 @@ const GroupForm = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Men (A)">Men (A)</SelectItem>
-                      <SelectItem value="Men (B)">Men (B)</SelectItem>
+                      <SelectItem value="Men">Men</SelectItem>
                       <SelectItem value="Women">Women</SelectItem>
                       <SelectItem value="Boys">Boys</SelectItem>
                       <SelectItem value="Girls">Girls</SelectItem>

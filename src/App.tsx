@@ -33,7 +33,7 @@ import { PlayerList } from "@/modules/players";
 import CreatePlayer from "./modules/players/CreatePlayer";
 import EditPlayer from "./modules/players/EditPlayer";
 import Profile from "./modules/profile/EditAgency";
-import Dashboard from "./modules/Dashboard/dashboard";
+import RoleBasedDashboard from "@/modules/Dashboard/RoleBasedDashboard";
 import Registerformat from "./modules/Register/register";
 import Unauthorized from "./components/common/Unauthorized";
 
@@ -63,8 +63,8 @@ const App = () => {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
-                  <Dashboard />
+                <ProtectedRoute roles={['admin', 'clubadmin']}>
+                  <RoleBasedDashboard />
                 </ProtectedRoute>
               }
             />

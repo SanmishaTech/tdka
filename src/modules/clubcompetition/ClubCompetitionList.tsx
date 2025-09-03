@@ -150,21 +150,20 @@ const ClubCompetitionList = () => {
                                     <TableHead>To Date</TableHead>
                                     <TableHead>Age</TableHead>
                                     <TableHead>Last Entry Date</TableHead>
-                                    <TableHead>Participating Clubs</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center">
+                                        <TableCell colSpan={7} className="h-24 text-center">
                                             <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                                             <p className="mt-2">Loading competitions...</p>
                                         </TableCell>
                                     </TableRow>
                                 ) : data?.competitions?.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="h-24 text-center">
+                                        <TableCell colSpan={7} className="h-24 text-center">
                                             No competitions found. Your club has not been assigned to any competitions yet.
                                         </TableCell>
                                     </TableRow>
@@ -177,9 +176,6 @@ const ClubCompetitionList = () => {
                                             <TableCell>{formatDate(competition.toDate)}</TableCell>
                                             <TableCell>{competition.age}</TableCell>
                                             <TableCell>{formatDate(competition.lastEntryDate)}</TableCell>
-                                            <TableCell>
-                                                {competition.clubs?.length || 0} clubs
-                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
                                                     <Button
