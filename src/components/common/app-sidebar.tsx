@@ -5,8 +5,8 @@ import {
   UsersRound,
   GalleryVerticalEnd,
   Map,
-  FileText,
   LayoutDashboard,
+  Trophy,
 } from "lucide-react";
 import { NavProjects } from "@/components/common/nav-projects";
 import { NavUser } from "@/components/common/nav-user";
@@ -39,7 +39,7 @@ const initialData = {
           icon: LayoutDashboard,
         },
         {
-          name: "Taluka",
+          name: "Places",
           url: "/talukas",
           icon: Map,
         },
@@ -62,7 +62,7 @@ const initialData = {
         {
           name: "Competition",
           url: "/competitions",
-          icon: UsersRound,
+          icon: Trophy,
         },
       
       ],
@@ -82,7 +82,7 @@ const initialData = {
         {
           name: "Competition",
           url: "/clubcompetitions",
-          icon: FileText,
+          icon: Trophy,
         },
         
       ],
@@ -92,7 +92,7 @@ const initialData = {
         {
           name: "Competition",
           url: "/observercompetitions",
-          icon: FileText,
+          icon: Trophy,
         },
       ],
     },
@@ -101,7 +101,7 @@ const initialData = {
         {
           name: "Competition",
           url: "/refereecompetitions",
-          icon: FileText,
+          icon: Trophy,
         },
       ],
     },
@@ -292,7 +292,7 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 >
                   <a
                     className="flex items-center gap-2 p-1.5 rounded-md hover:bg-accent/50 text-sidebar-foreground hover:text-sidebar-foreground"
-                    href="#"
+                    href="/dashboard"
                   >
                     <img
                       src="/TDKA logo.png"

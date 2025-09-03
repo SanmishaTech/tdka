@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Taluka, TalukasResponse } from "./types";
+import { Place, PlacesResponse } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,40 +42,40 @@ import {
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, del } from "@/services/apiService";
 // Import components from current directory
-import CreateTaluka from "./CreateTaluka";
-import EditTaluka from "./EditTaluka";
+import CreatePlace from "./CreatePlace";
+import EditPlace from "./EditPlace";
 
-const TalukaList = () => {
+const PlaceList = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState("number");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [editTalukaId, setEditTalukaId] = useState<string | null>(null);
+  const [editPlaceId, setEditPlaceId] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch talukas
+  // Fetch places
   const {
     data,
     isLoading,
     isError,
     error,
-  } = useQuery<TalukasResponse>({
-    queryKey: ["talukas", page, limit, search, sortBy, sortOrder],
-    queryFn: () => get("/talukas", { page, limit, search, sortBy, sortOrder }),
+  } = useQuery<PlacesResponse>({
+    queryKey: ["places", page, limit, search, sortBy, sortOrder],
+    queryFn: () => get("/places", { page, limit, search, sortBy, sortOrder }),
   });
 
-  // Delete taluka mutation
+  // Delete place mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => del(`/talukas/${id}`),
+    mutationFn: (id: number) => del(`/places/${id}`),
     onSuccess: () => {
-      toast.success("Taluka deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["talukas"] });
+      toast.success("Place deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["places"] });
     },
     onError: (error: any) => {
-      toast.error(error.errors?.message || error.message || "Failed to delete taluka");
+      toast.error(error.errors?.message || error.message || "Failed to delete place");
     },
   });
 
@@ -109,9 +109,9 @@ const TalukaList = () => {
     setPage(1); // Reset to first page when limit changes
   };
 
-  // Handle edit taluka
+  // Handle edit place
   const handleEdit = (id: string) => {
-    setEditTalukaId(id);
+    setEditPlaceId(id);
     setIsEditDialogOpen(true);
   };
 
@@ -122,16 +122,16 @@ const TalukaList = () => {
 
   const handleEditDialogClose = () => {
     setIsEditDialogOpen(false);
-    setEditTalukaId(null);
+    setEditPlaceId(null);
   };
 
   // Handle error
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center h-96">
-        <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Talukas</h2>
-        <p>{(error as any)?.message || "Failed to load talukas"}</p>
-        <Button className="mt-4" onClick={() => queryClient.invalidateQueries({ queryKey: ["talukas"] })}>
+        <h2 className="text-2xl font-bold text-red-500 mb-4">Error Loading Places</h2>
+        <p>{(error as any)?.message || "Failed to load places"}</p>
+        <Button className="mt-4" onClick={() => queryClient.invalidateQueries({ queryKey: ["places"] })}>
           Try Again
         </Button>
       </div>
@@ -142,9 +142,9 @@ const TalukaList = () => {
     <div className="space-y-4 p-6">
       <Card className="border border-border">
         <CardHeader className="text-xl font-bold">
-          Talukas
+          Places (Talukas)
           <CardDescription>
-            Manage talukas
+            Manage places/talukas
           </CardDescription>
         </CardHeader>
 
@@ -155,7 +155,7 @@ const TalukaList = () => {
             <div className="relative flex-1 min-w-[250px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search talukas..."
+                placeholder="Search places..."
                 value={search}
                 onChange={handleSearchChange}
                 className="pl-8 w-full"
@@ -172,7 +172,7 @@ const TalukaList = () => {
             </Button>
           </div>
 
-          {/* Talukas Table */}
+          {/* Places Table */}
           <div className="rounded-md border overflow-hidden">
             <Table>
               <TableHeader>
@@ -193,13 +193,16 @@ const TalukaList = () => {
                       </span>
                     )}
                   </TableHead>
-                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("talukaName")}>
-                    Taluka Name
-                    {sortBy === "talukaName" && (
+                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("placeName")}>
+                    Place Name
+                    {sortBy === "placeName" && (
                       <span className="ml-2 inline-block">
                         {sortOrder === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </span>
                     )}
+                  </TableHead>
+                  <TableHead className="w-auto">
+                    Region
                   </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -207,29 +210,38 @@ const TalukaList = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
-                      <p className="mt-2">Loading talukas...</p>
+                      <p className="mt-2">Loading places...</p>
                     </TableCell>
                   </TableRow>
-                ) : data?.talukas?.length === 0 ? (
+                ) : data?.places?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                      No talukas found.
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      No places found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data?.talukas?.map((taluka: Taluka) => (
-                    <TableRow key={taluka.id}>
-                      <TableCell className="font-mono">{String(taluka.number).padStart(2, '0')}</TableCell>
-                      <TableCell className="font-semibold">{taluka.abbreviation}</TableCell>
-                      <TableCell>{taluka.talukaName}</TableCell>
+                  data?.places?.map((place: Place) => (
+                    <TableRow key={place.id}>
+                      <TableCell className="font-mono">{String(place.number).padStart(2, '0')}</TableCell>
+                      <TableCell className="font-semibold">{place.abbreviation}</TableCell>
+                      <TableCell>{place.placeName}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                            {String(place.region?.number).padStart(2, '0')}
+                          </span>
+                          <span>{place.region?.regionName}</span>
+                          <span className="text-muted-foreground text-sm">({place.region?.abbreviation})</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEdit(taluka.id.toString())}
+                            onClick={() => handleEdit(place.id.toString())}
                           >
                             <PenSquare className="h-4 w-4" />
                             <span className="sr-only">Edit</span>
@@ -246,13 +258,13 @@ const TalukaList = () => {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete the taluka "{taluka.talukaName}"? This action cannot be undone.
+                                  Are you sure you want to delete the place "{place.placeName}"? This action cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => deleteMutation.mutate(taluka.id)}
+                                  onClick={() => deleteMutation.mutate(place.id)}
                                   className="bg-red-500 hover:bg-red-600"
                                 >
                                   {deleteMutation.isPending ? (
@@ -297,38 +309,38 @@ const TalukaList = () => {
               <CustomPagination
                 currentPage={page}
                 totalPages={data.totalPages}
-                totalRecords={data.totalTalukas}
+                totalRecords={data.totalPlaces}
                 recordsPerPage={limit}
                 onPageChange={handlePageChange}
                 onRecordsPerPageChange={handleRecordsPerPageChange}
               />
 
               <div className="text-sm">
-                Showing {(page - 1) * limit + 1} to {Math.min(page * limit, data.totalTalukas)} of {data.totalTalukas}
+                Showing {(page - 1) * limit + 1} to {Math.min(page * limit, data.totalPlaces)} of {data.totalPlaces}
               </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Create Taluka Dialog */}
+      {/* Create Place Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Add New Taluka</DialogTitle>
+            <DialogTitle>Add New Place</DialogTitle>
           </DialogHeader>
-          <CreateTaluka onSuccess={handleCreateDialogClose} />
+          <CreatePlace onSuccess={handleCreateDialogClose} />
         </DialogContent>
       </Dialog>
 
-      {/* Edit Taluka Dialog */}
-      {editTalukaId && (
+      {/* Edit Place Dialog */}
+      {editPlaceId && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Edit Taluka</DialogTitle>
+              <DialogTitle>Edit Place</DialogTitle>
             </DialogHeader>
-            <EditTaluka talukaId={editTalukaId} onSuccess={handleEditDialogClose} />
+            <EditPlace placeId={editPlaceId} onSuccess={handleEditDialogClose} />
           </DialogContent>
         </Dialog>
       )}
@@ -336,4 +348,4 @@ const TalukaList = () => {
   );
 };
 
-export default TalukaList;
+export default PlaceList;

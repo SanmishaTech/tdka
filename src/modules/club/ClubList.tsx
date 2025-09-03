@@ -129,17 +129,17 @@ const ClubList = () => {
     }
   };
 
-  // Fetch regions for mapping regionId -> regionName
-  const { data: regions } = useQuery({
-    queryKey: ["regions"],
-    queryFn: () => get("/clubs/regions"),
+  // Fetch places for mapping placeId -> placeName
+  const { data: placesResp } = useQuery({
+    queryKey: ["places"],
+    queryFn: () => get("/places", { page: 1, limit: 1000, sortBy: "placeName", sortOrder: "asc" }),
   });
 
-  const regionNameById = React.useMemo(() => {
+  const placeNameById = React.useMemo(() => {
     const map = new Map<number, string>();
-    regions?.forEach((r: any) => map.set(r.id, r.regionName));
+    placesResp?.places?.forEach((p: any) => map.set(p.id, p.placeName));
     return map;
-  }, [regions]);
+  }, [placesResp]);
 
   // Delete club mutation
   const deleteMutation = useMutation({
@@ -262,9 +262,9 @@ const ClubList = () => {
                   <TableHead>Unique Number</TableHead>
                   <TableHead>Club Name</TableHead>
 
-                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("regionId")}>
-                    Region
-                    {sortBy === "regionId" && (
+                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("placeId")}>
+                    Place
+                    {sortBy === "placeId" && (
                       <span className="ml-2 inline-block">
                         {sortOrder === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </span>
@@ -293,7 +293,7 @@ const ClubList = () => {
                     <TableRow key={club.id}>
                       <TableCell>{club.uniqueNumber || '-'}</TableCell>
                       <TableCell>{club.clubName}</TableCell>
-                      <TableCell>{regionNameById.get(club.regionId) || '-'}</TableCell>
+                      <TableCell>{placeNameById.get(club.placeId) || '-'}</TableCell>
                       <TableCell>{club.email}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -390,7 +390,7 @@ const ClubList = () => {
             <DialogDescription>
               Prepare your Excel file with the following columns:
               <br />
-              <span className="font-medium">Club Name</span>, <span className="font-medium">Email</span>, <span className="font-medium">Region</span>
+              <span className="font-medium">Club Name</span>, <span className="font-medium">Email</span>, <span className="font-medium">Place</span>
             </DialogDescription>
           </DialogHeader>
 

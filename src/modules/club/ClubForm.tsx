@@ -30,6 +30,7 @@ import {
 // Services and utilities
 import { post, put, get } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
+import { Place } from "@/modules/place/types";
 
 // Define interfaces for API responses
 interface Taluka {
@@ -52,7 +53,7 @@ interface ClubData {
   clubName: string;
   affiliationNumber: string;
   uniqueNumber?: string;
-  regionId?: number;
+  placeId?: number;
   city: string;
   address: string;
   mobile: string;
@@ -104,8 +105,8 @@ const clubFormSchemaBase = z.object({
     ])
     .optional()
     .transform((v) => (v === "" ? undefined : v)),
-  regionId: z.number()
-    .min(1, "Please select a region"),
+  placeId: z.number()
+    .min(1, "Please select a place"),
   city: z
     .union([
       z.string().max(255, "City must not exceed 255 characters"),
@@ -329,7 +330,7 @@ const ClubForm = ({
     defaultValues: {
       clubName: "",
       affiliationNumber: "",
-      regionId: undefined,
+      placeId: undefined,
       city: "",
       address: "",
       mobile: "",
@@ -369,13 +370,10 @@ const ClubForm = ({
     },
   });
 
-  // Query for fetching regions for dropdown
-  const { data: regions, isLoading: isLoadingRegions } = useQuery<Region[]>({
-    queryKey: ["regions-dropdown"],
-    queryFn: async () => {
-      const response = await get("/clubs/regions");
-      return response;
-    },
+  // Query for fetching places for dropdown
+  const { data: placesResp, isLoading: isLoadingPlaces } = useQuery<{ places: Place[] }>({
+    queryKey: ["places-dropdown"],
+    queryFn: async () => get("/places", { page: 1, limit: 1000, sortBy: "placeName", sortOrder: "asc" }),
     refetchOnWindowFocus: false,
   });
 
@@ -402,7 +400,7 @@ const ClubForm = ({
       form.reset({
         clubName: clubData.clubName,
         affiliationNumber: clubData.affiliationNumber,
-        regionId: clubData.regionId,
+        placeId: clubData.placeId,
         city: clubData.city,
         address: clubData.address || "",
         mobile: clubData.mobile || "",
@@ -577,7 +575,7 @@ const ClubForm = ({
             )}
           />
 
-          {/* Affiliation Number and Region - Two Column Grid */}
+          {/* Affiliation Number and Place - Two Column Grid */}
           <div className="grid grid-cols-2 gap-4">
             {/* Affiliation Number Field */}
             <FormField
@@ -598,36 +596,36 @@ const ClubForm = ({
               )}
             />
 
-            {/* Region Dropdown Field */}
+            {/* Place Dropdown Field */}
             <FormField
               control={form.control}
-              name="regionId"
+              name="placeId"
               render={({ field }) => {
-                const selectedRegion = regions?.find(r => r.id === field.value);
+                const selectedPlace = placesResp?.places?.find(p => p.id === field.value);
                 return (
                   <FormItem>
-                    <FormLabel>Region <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Place (Taluka) <span className="text-red-500">*</span></FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
                       value={field.value?.toString()}
-                      disabled={isFormLoading || isLoadingRegions}
+                      disabled={isFormLoading || isLoadingPlaces}
                     >
                       <FormControl>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a region" />
+                          <SelectValue placeholder="Select a place" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {regions?.map((region) => (
-                          <SelectItem key={region.id} value={region.id.toString()}>
-                            {region.regionName}
+                        {placesResp?.places?.map((place) => (
+                          <SelectItem key={place.id} value={place.id.toString()}>
+                            {place.placeName}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {selectedRegion && (
+                    {selectedPlace && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Taluka: {selectedRegion.taluka.talukaName}
+                        Region: {selectedPlace.region?.regionName} ({selectedPlace.region?.abbreviation})
                       </p>
                     )}
                     <FormMessage />

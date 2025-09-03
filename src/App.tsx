@@ -17,7 +17,9 @@ import ResetPassword from "./modules/Auth/ResetPassword";
 import ProtectedRoute from "./components/common/protected-route"; // Correct path
 import UserList from "@/modules/User/UserList";
 import GroupList from "@/modules/group/GroupList";
-import { TalukaList, CreateTaluka, EditTaluka } from "@/modules/taluka";
+import TalukaList from "@/modules/place/PlaceList";
+import CreateTaluka from "@/modules/place/CreatePlace";
+import EditTaluka from "@/modules/place/EditPlace";
 import { RegionList, CreateRegion, EditRegion } from "@/modules/region";
 import ClubList from "@/modules/club/ClubList";
 import CreateClub from "./modules/club/CreateClub";

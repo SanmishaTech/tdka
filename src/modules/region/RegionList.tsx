@@ -201,28 +201,20 @@ const RegionList = () => {
                       </span>
                     )}
                   </TableHead>
-                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("talukaName")}>
-                    Taluka
-                    {sortBy === "talukaName" && (
-                      <span className="ml-2 inline-block">
-                        {sortOrder === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </span>
-                    )}
-                  </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading regions...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.regions?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       No regions found.
                     </TableCell>
                   </TableRow>
@@ -232,15 +224,6 @@ const RegionList = () => {
                       <TableCell className="font-mono">{String(region.number).padStart(2, '0')}</TableCell>
                       <TableCell className="font-semibold">{region.abbreviation}</TableCell>
                       <TableCell>{region.regionName}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                            {String(region.taluka.number).padStart(2, '0')}
-                          </span>
-                          <span>{region.taluka.talukaName}</span>
-                          <span className="text-muted-foreground text-sm">({region.taluka.abbreviation})</span>
-                        </div>
-                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -330,7 +313,7 @@ const RegionList = () => {
 
       {/* Create Region Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Add New Region</DialogTitle>
           </DialogHeader>
@@ -341,7 +324,7 @@ const RegionList = () => {
       {/* Edit Region Dialog */}
       {editRegionId && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Edit Region</DialogTitle>
             </DialogHeader>

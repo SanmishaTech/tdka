@@ -18,18 +18,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // Services and utilities
 import { post, put, get } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
-import { Region, Taluka } from "./types";
+import { Region } from "./types";
 
 // Create schema for region form
 const regionFormSchema = z.object({
@@ -46,9 +39,6 @@ const regionFormSchema = z.object({
     .min(1, "Region name is required")
     .max(100, "Region name must not exceed 100 characters")
     .regex(/^[A-Za-z\s\u0900-\u097F]+$/, "Region name can only contain letters and spaces"),
-  talukaId: z.number()
-    .min(1, "Please select a taluka")
-    .int("Invalid taluka selection"),
 });
 
 // Helper to extract user-friendly message from API error
@@ -103,7 +93,6 @@ const RegionForm = ({
       number: undefined,
       abbreviation: "",
       regionName: "",
-      talukaId: undefined,
     },
   });
 
@@ -127,22 +116,13 @@ const RegionForm = ({
     if (mode === "create" && regionListForMax) {
       const highest = regionListForMax.regions?.[0]?.number ?? 0;
       const next = Math.min(highest + 1, 99);
+      // Only set if user hasn't typed anything yet
       const current = form.getValues("number");
       if (current === undefined || current === null || current === ("" as any)) {
         form.setValue("number", next, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
       }
     }
   }, [regionListForMax, mode, form]);
-
-  // Query for fetching talukas for dropdown
-  const { data: talukas, isLoading: isLoadingTalukas } = useQuery<Taluka[]>({
-    queryKey: ["talukas-dropdown"],
-    queryFn: async () => {
-      const response = await get("/regions/talukas");
-      return response;
-    },
-    refetchOnWindowFocus: false,
-  });
 
   // Query for fetching region data in edit mode
   const { data: regionData, isLoading: isFetchingRegion, error: fetchError } = useQuery({
@@ -169,9 +149,6 @@ const RegionForm = ({
       }
       form.setValue("abbreviation", regionData.abbreviation || "");
       form.setValue("regionName", regionData.regionName || "");
-      if (regionData.talukaId !== undefined && regionData.talukaId !== null) {
-        form.setValue("talukaId", regionData.talukaId);
-      }
     }
   }, [regionData, mode, form]);
 
@@ -282,14 +259,14 @@ const RegionForm = ({
     }
   };
 
-  // Combined loading from fetch and mutations
+  // Combined loading region from fetch and mutations
   const isFormLoading = isFetchingRegion || createRegionMutation.isPending || updateRegionMutation.isPending;
 
   return (
     <div className={className}>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-7">
-          <div className="grid grid-cols-2 gap-4 relative">
+          <div className="grid grid-cols-3 gap-4 relative">
             {/* Number Field */}
             <FormField
               control={form.control}
@@ -334,9 +311,7 @@ const RegionForm = ({
                 </FormItem>
               )}
             />
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             {/* Region Name Field */}
             <FormField
               control={form.control}
@@ -352,36 +327,6 @@ const RegionForm = ({
                       maxLength={100}
                     />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Taluka Selection Field */}
-            <FormField
-              control={form.control}
-              name="talukaId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Taluka <span className="text-red-500">*</span></FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                    value={field.value ? field.value.toString() : ""}
-                    disabled={isFormLoading || isLoadingTalukas}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={isLoadingTalukas ? "Loading talukas..." : "Select a taluka"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {talukas?.map((taluka) => (
-                        <SelectItem key={taluka.id} value={taluka.id.toString()}>
-                          {String(taluka.number).padStart(2, '0')} - {taluka.talukaName} ({taluka.abbreviation})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
