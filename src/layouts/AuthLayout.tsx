@@ -45,8 +45,8 @@ const AuthLayout = () => {
 				{/* Cover Image Section */}
 				<div className='relative hidden lg:block'>
 					<img
-						src='https://images.pexels.com/photos/262524/pexels-photo-262524.jpeg?auto=compress&cs=tinysrgb&w=1000&h=600&fit=crop'
-						alt='Professional sports team in action'
+						src='/kabbadi.jpg'
+						alt='Kabaddi players in action at TDKA tournament'
 						className='absolute inset-0 h-full w-full object-cover'
 					/>
 					<div className='relative z-10 flex flex-col justify-end h-full p-12 text-white'>
