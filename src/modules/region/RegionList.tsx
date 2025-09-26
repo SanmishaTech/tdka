@@ -278,22 +278,7 @@ const RegionList = () => {
 
           {/* Pagination */}
           {data && data.totalPages > 1 && (
-            <div className="flex justify-between items-center mt-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">Show</span>
-                <select
-                  className="border rounded p-1 text-sm"
-                  value={limit}
-                  onChange={(e) => handleRecordsPerPageChange(Number(e.target.value))}
-                >
-                  <option value="10">10</option>
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-                <span className="text-sm">per page</span>
-              </div>
-
+            <div className="flex justify-center mt-4">
               <CustomPagination
                 currentPage={page}
                 totalPages={data.totalPages}
@@ -302,10 +287,6 @@ const RegionList = () => {
                 onPageChange={handlePageChange}
                 onRecordsPerPageChange={handleRecordsPerPageChange}
               />
-
-              <div className="text-sm">
-                Showing {(page - 1) * limit + 1} to {Math.min(page * limit, data.totalRegions)} of {data.totalRegions}
-              </div>
             </div>
           )}
         </CardContent>

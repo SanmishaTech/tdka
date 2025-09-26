@@ -117,6 +117,8 @@ const Login = () => {
         navigate("/refereecompetitions");
       } else if (role === "clubadmin" || role === "CLUB") {
         navigate("/players");
+      } else if (role === "admin") {
+        navigate("/dashboard");
       } else {
         navigate("/clubs");
       }

@@ -39,13 +39,13 @@ const initialData = {
           icon: LayoutDashboard,
         },
         {
-          name: "Places",
-          url: "/talukas",
+          name: "Region",
+          url: "/regions",
           icon: Map,
         },
         {
-          name: "Region",
-          url: "/regions",
+          name: "Places",
+          url: "/talukas",
           icon: Map,
         },
         {
