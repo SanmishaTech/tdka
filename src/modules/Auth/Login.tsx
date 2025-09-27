@@ -116,7 +116,7 @@ const Login = () => {
       } else if (role && role.toLowerCase() === "referee") {
         navigate("/refereecompetitions");
       } else if (role === "clubadmin" || role === "CLUB") {
-        navigate("/players");
+        navigate("/dashboard");
       } else if (role === "admin") {
         navigate("/dashboard");
       } else {
@@ -126,7 +126,6 @@ const Login = () => {
       toast.success("Login successful!");
     },
     onError: (error: ApiErrorResponse) => {
-      // Handle field-specific validation errors (map to form fields)
       const handleValidationErrors = () => {
         // Check if we have field-specific errors to map to the form
         if (error.errors && Array.isArray(error.errors)) {
