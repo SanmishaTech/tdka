@@ -232,28 +232,51 @@ const PlayerList = () => {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Filter Players</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleFilterChange('all')}>
-                  All Players
+                <DropdownMenuItem onClick={() => handleFilterChange('all')} className="flex items-center justify-between">
+                  <span>All Players</span>
+                  {isSuspended === undefined && aadharVerified === undefined && (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleFilterChange('active')}>
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                  Active Players
+                <DropdownMenuItem onClick={() => handleFilterChange('active')} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                    Active Players
+                  </div>
+                  {isSuspended === false && (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleFilterChange('suspended')}>
-                  <Ban className="mr-2 h-4 w-4 text-red-500" />
-                  Suspended Players
+                <DropdownMenuItem onClick={() => handleFilterChange('suspended')} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Ban className="mr-2 h-4 w-4 text-red-500" />
+                    Suspended Players
+                  </div>
+                  {isSuspended === true && (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Aadhar Verification</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => handleFilterChange('verified')}>
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                  Verified
+                <DropdownMenuItem onClick={() => handleFilterChange('verified')} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                    Verified
+                  </div>
+                  {aadharVerified === true && (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleFilterChange('unverified')}>
-                  <XCircle className="mr-2 h-4 w-4 text-amber-500" />
-                  Unverified
+                <DropdownMenuItem onClick={() => handleFilterChange('unverified')} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <XCircle className="mr-2 h-4 w-4 text-amber-500" />
+                    Unverified
+                  </div>
+                  {aadharVerified === false && (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
