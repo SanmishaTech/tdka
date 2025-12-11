@@ -194,9 +194,18 @@ const PlayerForm = ({
       const verified = resp?.aadharVerified === true || resp?.aadharVerified === "true";
       setAadharVerified(verified);
       if (verified) {
-        toast.success("Aadhaar verified successfully");
+        toast.success("Aadhaar verified and matched successfully");
+        // clear possible previous errors
+        form.clearErrors(["firstName","lastName","dateOfBirth"]);
       } else {
-        toast.error("Aadhaar verification failed");
+        // Set validation errors beside the fields
+        if (resp?.mismatchReasons?.includes("Name does not match")) {
+          form.setError("firstName", { type: "manual", message: "Name does not match Aadhaar" });
+          form.setError("lastName", { type: "manual", message: "Name does not match Aadhaar" });
+        }
+        if (resp?.mismatchReasons?.includes("Date of birth does not match")) {
+          form.setError("dateOfBirth", { type: "manual", message: "DOB does not match Aadhaar" });
+        }
       }
     } catch (error: any) {
       toast.error(error?.message || "Verification failed");
@@ -596,7 +605,7 @@ const PlayerForm = ({
                           variant="outline" 
                           size="sm"
                           className="cursor-pointer"
-                          disabled={isFormLoading}
+                          disabled={isFormLoading || aadharVerified}
                           asChild
                         >
                           <span>
@@ -609,7 +618,7 @@ const PlayerForm = ({
                           accept="image/*"
                           onChange={handleImageFileSelect}
                           className="sr-only"
-                          disabled={isFormLoading}
+                          disabled={isFormLoading || aadharVerified}
                         />
                       </label>
                       
@@ -619,7 +628,7 @@ const PlayerForm = ({
                           variant="outline" 
                           size="sm"
                           onClick={handleRemoveImage}
-                          disabled={isFormLoading}
+                          disabled={isFormLoading || aadharVerified}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
                           <X className="w-4 h-4 mr-2" />
@@ -648,7 +657,7 @@ const PlayerForm = ({
                       <Input
                         placeholder="Enter first name"
                         {...field}
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                       />
                     </FormControl>
                     <FormMessage />
@@ -667,7 +676,7 @@ const PlayerForm = ({
                       <Input
                         placeholder="Enter middle name"
                         {...field}
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                       />
                     </FormControl>
                     <FormMessage />
@@ -686,7 +695,7 @@ const PlayerForm = ({
                       <Input
                         placeholder="Enter last name"
                         {...field}
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                       />
                     </FormControl>
                     <FormMessage />
@@ -706,7 +715,7 @@ const PlayerForm = ({
                     <Input
                       placeholder="Enter mother name"
                       {...field}
-                      disabled={isFormLoading}
+                      disabled={isFormLoading || aadharVerified}
                     />
                   </FormControl>
                   <FormMessage />
@@ -727,7 +736,7 @@ const PlayerForm = ({
                       <Input
                         placeholder="Enter date of birth"
                         {...field}
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                         type="date"
                       />
                     </FormControl>
@@ -746,7 +755,7 @@ const PlayerForm = ({
                     <Select
                       onValueChange={field.onChange}
                       value={field.value}
-                      disabled={isFormLoading}
+                      disabled={isFormLoading || aadharVerified}
                     >
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -805,7 +814,7 @@ const PlayerForm = ({
                         variant="outline"
                         size="sm"
                         className="cursor-pointer"
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                         asChild
                       >
                         <span>
@@ -818,7 +827,7 @@ const PlayerForm = ({
                         accept="image/*"
                         onChange={handleAadharImageFileSelect}
                         className="sr-only"
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                       />
                     </label>
                     {aadharImagePreview && (
@@ -827,7 +836,7 @@ const PlayerForm = ({
                         variant="outline"
                         size="sm"
                         onClick={handleRemoveAadharImage}
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
                         <X className="w-4 h-4 mr-2" />
@@ -852,7 +861,7 @@ const PlayerForm = ({
                       <Input
                         placeholder="Enter mobile number"
                         {...field}
-                        disabled={isFormLoading}
+                        disabled={isFormLoading || aadharVerified}
                         maxLength={10}
                         type="tel"
                       />
@@ -888,26 +897,28 @@ const PlayerForm = ({
             </div>
 
             {/* Aadhaar Verify Button & Status */}
-            <div className="flex items-center gap-3 mb-4">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isFormLoading || isVerifying}
-                onClick={handleVerifyAadhar}
-                className="flex items-center gap-2"
-              >
-                {isVerifying ? (
-                  <LoaderCircle className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Check className="w-4 h-4" />
+            {mode === "edit" && (
+              <div className="flex items-center gap-3 mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isFormLoading || isVerifying}
+                  onClick={handleVerifyAadhar}
+                  className="flex items-center gap-2"
+                >
+                  {isVerifying ? (
+                    <LoaderCircle className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  {aadharVerified ? "Verified" : "Verify"}
+                </Button>
+                {aadharVerified && (
+                  <Badge variant="secondary" className="bg-green-600 text-white">Verified</Badge>
                 )}
-                {aadharVerified ? "Verified" : "Verify"}
-              </Button>
-              {aadharVerified && (
-                <Badge variant="secondary" className="bg-green-600 text-white">Verified</Badge>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Address Field */}
             <FormField
@@ -920,7 +931,7 @@ const PlayerForm = ({
                     <Textarea
                       placeholder="Enter address"
                       {...field}
-                      disabled={isFormLoading}
+                      disabled={isFormLoading || aadharVerified}
                       rows={3}
                     />
                   </FormControl>
@@ -1025,11 +1036,11 @@ const PlayerForm = ({
               type="button"
               variant="outline"
               onClick={handleCancel}
-              disabled={isFormLoading}
+              disabled={isFormLoading || aadharVerified}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isFormLoading}>
+            <Button type="submit" disabled={isFormLoading || aadharVerified}>
               {isFormLoading && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "create" ? "Create" : "Update"} Player
             </Button>

@@ -518,56 +518,44 @@ const PlayerList = () => {
                                 </AlertDialogContent>
                               </AlertDialog>
 
-                              {/* Toggle Aadhar Verification */}
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                    {player.aadharVerified ? (
-                                      <>
-                                        <XCircle className="mr-2 h-4 w-4 text-amber-500" />
-                                        Mark Aadhar as Unverified
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                                        Verify Aadhar
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      {player.aadharVerified ? "Mark Aadhar as Unverified" : "Verify Aadhar"}
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      {player.aadharVerified 
-                                        ? `Are you sure you want to mark ${player.firstName} ${player.lastName}'s Aadhar as unverified?`
-                                        : `Are you sure you want to verify ${player.firstName} ${player.lastName}'s Aadhar?`
-                                      }
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => toggleAadharVerificationMutation.mutate({
-                                        id: player.id,
-                                        aadharVerified: !player.aadharVerified
-                                      })}
-                                      className={player.aadharVerified ? "bg-amber-500 hover:bg-amber-600" : "bg-green-500 hover:bg-green-600"}
-                                    >
-                                      {toggleAadharVerificationMutation.isPending ? (
-                                        <>
-                                          <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
-                                          Processing...
-                                        </>
-                                      ) : (
-                                        player.aadharVerified ? "Mark as Unverified" : "Verify"
-                                      )}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              {/* Toggle Aadhar Verification (only allow unverify) */}
+                              {player.aadharVerified && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                      <XCircle className="mr-2 h-4 w-4 text-amber-500" />
+                                      Mark Aadhar as Unverified
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Mark Aadhar as Unverified</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        {`Are you sure you want to mark ${player.firstName} ${player.lastName}'s Aadhar as unverified?`}
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => toggleAadharVerificationMutation.mutate({
+                                          id: player.id,
+                                          aadharVerified: false,
+                                        })}
+                                        className="bg-amber-500 hover:bg-amber-600"
+                                      >
+                                        {toggleAadharVerificationMutation.isPending ? (
+                                          <>
+                                            <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                                            Processing...
+                                          </>
+                                        ) : (
+                                          "Mark as Unverified"
+                                        )}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
