@@ -186,6 +186,12 @@ export const postupload = async (
   }
 };
 
+// Aadhaar verification helper (multipart upload)
+export const verifyAadhar = async (url: string, formData: FormData) => {
+  // url should be '/players/verify-aadhar' or `/players/${playerId}/verify-aadhar`
+  return postupload(url, formData);
+};
+
 export const putupload = async (
   url: string,
   formData: FormData,

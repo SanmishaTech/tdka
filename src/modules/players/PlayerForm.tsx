@@ -148,6 +148,8 @@ interface PlayerFormProps {
   className?: string;
 }
 
+import { verifyAadhar } from "@/services/apiService";
+
 const PlayerForm = ({
   mode,
   playerId,
@@ -161,6 +163,47 @@ const PlayerForm = ({
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
   const [existingProfileImage, setExistingProfileImage] = useState<string | null>(null);
+
+  // Aadhaar verification state
+  const [aadharVerified, setAadharVerified] = useState<boolean>(false);
+
+  // Aadhar image state
+  const [aadharImageFile, setAadharImageFile] = useState<File | null>(null);
+  const [aadharImagePreview, setAadharImagePreview] = useState<string | null>(null);
+  const [existingAadharImage, setExistingAadharImage] = useState<string | null>(null);
+
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+
+  // Handle Aadhaar verification
+  const handleVerifyAadhar = async () => {
+    if (isFormLoading || isVerifying) return;
+    const aadharNumber = form.getValues("aadharNumber") as string;
+    if (!aadharNumber || aadharNumber.length !== 12) {
+      toast.error("Enter valid 12-digit Aadhaar number first");
+      return;
+    }
+    try {
+      setIsVerifying(true);
+      const formData = new FormData();
+      formData.append("aadharNumber", aadharNumber);
+      if (aadharImageFile) {
+        formData.append("file", aadharImageFile);
+      }
+      const url = mode === "edit" && playerId ? `/players/${playerId}/verify-aadhar` : "/players/verify-aadhar";
+      const resp: any = await verifyAadhar(url, formData);
+      const verified = resp?.aadharVerified === true || resp?.aadharVerified === "true";
+      setAadharVerified(verified);
+      if (verified) {
+        toast.success("Aadhaar verified successfully");
+      } else {
+        toast.error("Aadhaar verification failed");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Verification failed");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   // Initialize form with Shadcn Form
   const form = useForm<PlayerFormInputs>({
@@ -224,42 +267,18 @@ const PlayerForm = ({
 
       // Set existing profile image
       if (playerData.profileImage) {
-        // In development, use the proxy (/uploads will be proxied to backend)
-        // In production, use the full backend URL
-        const isDevelopment = import.meta.env.DEV;
-        const imageUrl = isDevelopment 
-          ? `/${playerData.profileImage}` // Use proxy in development
-          : `${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/${playerData.profileImage}`; // Direct URL in production
-        
-        console.log('Setting up profile image:');
-        console.log('- Database path:', playerData.profileImage);
-        console.log('- Development mode:', isDevelopment);
-        console.log('- Final URL:', imageUrl);
-        
+        const isDev = import.meta.env.DEV;
+        const imageUrl = isDev ? `/${playerData.profileImage}` : `${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/${playerData.profileImage}`;
         setExistingProfileImage(imageUrl);
         setProfileImagePreview(imageUrl);
-        
-        // Test if the image exists by creating a test image
-        const testImg = new Image();
-        testImg.onload = () => {
-          console.log('✅ Image exists and is accessible:', imageUrl);
-        };
-        testImg.onerror = () => {
-          console.error('❌ Image failed to load:', imageUrl);
-          console.log('Trying to fetch the URL directly...');
-          fetch(imageUrl)
-            .then(response => {
-              console.log('Fetch response status:', response.status);
-              console.log('Fetch response headers:', response.headers);
-              if (!response.ok) {
-                console.error('Fetch failed with status:', response.status);
-              }
-            })
-            .catch(error => {
-              console.error('Fetch error:', error);
-            });
-        };
-        testImg.src = imageUrl;
+      }
+
+      // Set existing aadhar image
+      if (playerData.aadharImage) {
+        const isDev = import.meta.env.DEV;
+        const imageUrl = isDev ? `/${playerData.aadharImage}` : `${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/${playerData.aadharImage}`;
+        setExistingAadharImage(imageUrl);
+        setAadharImagePreview(imageUrl);
       }
     }
   }, [playerData, mode, form]);
@@ -281,8 +300,8 @@ const PlayerForm = ({
   // Mutation for creating a player
   const createPlayerMutation = useMutation({
     mutationFn: async (data: PlayerFormInputs) => {
-      if (profileImageFile) {
-        // If there's a profile image file, use FormData to upload
+      if (profileImageFile || aadharImageFile) {
+        // If there's a profile or Aadhar image file, use FormData to upload
         const formData = new FormData();
         formData.append('firstName', data.firstName);
         formData.append('middleName', data.middleName || '');
@@ -294,7 +313,8 @@ const PlayerForm = ({
         formData.append('mobile', data.mobile);
         formData.append('aadharNumber', data.aadharNumber!);
         formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
-        formData.append('profileImage', profileImageFile);
+        if (profileImageFile) formData.append('profileImage', profileImageFile);
+        if (aadharImageFile) formData.append('aadharImage', aadharImageFile);
         
         return postupload("/players", formData);
       } else {
@@ -342,8 +362,8 @@ const PlayerForm = ({
   // Mutation for updating a player
   const updatePlayerMutation = useMutation({
     mutationFn: async (data: PlayerFormInputs) => {
-      if (profileImageFile || shouldRemoveImage) {
-        // If there's a new profile image file or image should be removed, use FormData
+      if (profileImageFile || aadharImageFile) {
+        // If there's a new profile image file or aadhar image file, use FormData
         const formData = new FormData();
         formData.append('firstName', data.firstName);
         formData.append('middleName', data.middleName || '');
@@ -358,9 +378,9 @@ const PlayerForm = ({
         
         if (profileImageFile) {
           formData.append('profileImage', profileImageFile);
-        } else if (shouldRemoveImage) {
-          // Send removeImage flag to indicate image should be removed
-          formData.append('removeImage', 'true');
+        }
+        if (aadharImageFile) {
+          formData.append('aadharImage', aadharImageFile);
         }
         
         return putupload(`/players/${playerId}`, formData);
@@ -409,6 +429,8 @@ const PlayerForm = ({
 
   // Track if image should be removed
   const [shouldRemoveImage, setShouldRemoveImage] = useState<boolean>(false);
+  // Track if Aadhar image should be removed
+  const [shouldRemoveAadharImage, setShouldRemoveAadharImage] = useState<boolean>(false);
 
   // Handle profile image removal
   const handleRemoveImage = () => {
@@ -416,6 +438,33 @@ const PlayerForm = ({
     setProfileImageFile(null);
     setExistingProfileImage(null);
     setShouldRemoveImage(true); // Mark for removal
+  };
+
+  // Handle Aadhar image removal
+  const handleRemoveAadharImage = () => {
+    setAadharImagePreview(null);
+    setAadharImageFile(null);
+    setExistingAadharImage(null);
+    setShouldRemoveAadharImage(true);
+  };
+
+  // Handle Aadhar image file selection
+  const handleAadharImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size must be less than 2MB');
+      return;
+    }
+    setAadharImageFile(file);
+    setShouldRemoveAadharImage(false);
+    const reader = new FileReader();
+    reader.onloadend = () => setAadharImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   // Handle profile image file selection
@@ -673,7 +722,7 @@ const PlayerForm = ({
                 name="dateOfBirth"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date of Birth <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel>Date Of Birth (According to Aadhar) <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Enter date of birth"
@@ -720,7 +769,77 @@ const PlayerForm = ({
               />
             </div>
 
-            {/* Mobile and Aadhar Fields */}
+            {/* Aadhar Image Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium border-b pb-2">Aadhar Image (optional)</h3>
+              <div className="flex items-center gap-4">
+                {aadharImagePreview && (
+                  <div className="relative">
+                    <img
+                      src={aadharImagePreview}
+                      alt="Aadhar Preview"
+                      className="w-24 h-24 object-cover border-2 border-gray-200 rounded"
+                    />
+                    <div className="mt-2 text-sm text-center">
+                      {mode === "edit" ? "Current Image" : "Preview"}
+                    </div>
+                  </div>
+                )}
+                {!aadharImagePreview && (
+                  <div className="w-24 h-24 bg-gray-100 border-2 border-gray-200 flex items-center justify-center rounded">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5" />
+                    </svg>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm text-muted-foreground">
+                    {mode === "edit" ? "Update Aadhar image" : "Add Aadhar image"} (optional)
+                  </div>
+                  <div className="text-xs text-muted-foreground">Supported formats: JPEG, PNG</div>
+                  <div className="text-xs text-muted-foreground">Max size: 2MB</div>
+                  <div className="flex gap-2 mt-2">
+                    <label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                        disabled={isFormLoading}
+                        asChild
+                      >
+                        <span>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Choose Image
+                        </span>
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAadharImageFileSelect}
+                        className="sr-only"
+                        disabled={isFormLoading}
+                      />
+                    </label>
+                    {aadharImagePreview && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRemoveAadharImage}
+                        disabled={isFormLoading}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile and Aadhaar Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Mobile Field */}
               <FormField
@@ -766,6 +885,28 @@ const PlayerForm = ({
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Aadhaar Verify Button & Status */}
+            <div className="flex items-center gap-3 mb-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isFormLoading || isVerifying}
+                onClick={handleVerifyAadhar}
+                className="flex items-center gap-2"
+              >
+                {isVerifying ? (
+                  <LoaderCircle className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                {aadharVerified ? "Verified" : "Verify"}
+              </Button>
+              {aadharVerified && (
+                <Badge variant="secondary" className="bg-green-600 text-white">Verified</Badge>
+              )}
             </div>
 
             {/* Address Field */}
