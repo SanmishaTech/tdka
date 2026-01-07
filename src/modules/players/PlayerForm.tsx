@@ -184,6 +184,7 @@ const PlayerForm = ({
     }
     try {
       setIsVerifying(true);
+      form.clearErrors(["aadharNumber"]);
       const formData = new FormData();
       formData.append("aadharNumber", aadharNumber);
       if (aadharImageFile) {
@@ -196,9 +197,12 @@ const PlayerForm = ({
       if (verified) {
         toast.success("Aadhaar verified and matched successfully");
         // clear possible previous errors
-        form.clearErrors(["firstName","lastName","dateOfBirth"]);
+        form.clearErrors(["aadharNumber", "firstName","lastName","dateOfBirth"]);
       } else {
         // Set validation errors beside the fields
+        if (resp?.mismatchReasons?.includes("Aadhar number does not match")) {
+          form.setError("aadharNumber", { type: "manual", message: "Aadhaar number does not match image" });
+        }
         if (resp?.mismatchReasons?.includes("Name does not match")) {
           form.setError("firstName", { type: "manual", message: "Name does not match Aadhaar" });
           form.setError("lastName", { type: "manual", message: "Name does not match Aadhaar" });

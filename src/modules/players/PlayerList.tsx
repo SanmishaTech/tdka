@@ -34,6 +34,11 @@ import {
   Download
 } from "lucide-react";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -55,7 +60,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, patch } from "@/services/apiService";
-
 
 const PlayerList = () => {
   const [page, setPage] = useState(1);
@@ -164,6 +168,28 @@ const PlayerList = () => {
   // Handle edit player
   const handleEdit = (id: string) => {
     navigate(`/players/edit/${id}`);
+  };
+
+  const handleDownloadICard = async (player: any) => {
+    try {
+      const response: any = await get(`/players/${player.id}/icard/pdf`, undefined, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const safeName = (player.uniqueIdNumber || `player_${player.id}`).replace(/[^a-zA-Z0-9_-]/g, "_");
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeName}_icard.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.error(error.errors?.message || error.message || "Failed to download iCard");
+    }
   };
 
   // Calculate age from date of birth
@@ -447,6 +473,20 @@ const PlayerList = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDownloadICard(player)}
+                              >
+                                <Download className="h-4 w-4" />
+                                <span className="sr-only">Download iCard</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent sideOffset={6}>Download iCard</TooltipContent>
+                          </Tooltip>
+
                           <Button
                             variant="ghost"
                             size="icon"

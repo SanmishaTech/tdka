@@ -81,6 +81,13 @@ const CompetitionClubDetails = () => {
     }
   };
 
+  const getPlayerProfileUrl = (profileImage?: string | null) => {
+    if (!profileImage) return null;
+    const isDev = import.meta.env.DEV;
+    const backend = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3000").replace(/\/$/, "");
+    return isDev ? `/${profileImage}` : `${backend}/${profileImage}`;
+  };
+
 
   // Handle error
   if (isError) {
@@ -248,7 +255,30 @@ const CompetitionClubDetails = () => {
                   {registeredPlayers.registrations.map((registration: any) => (
                     <TableRow key={registration.id}>
                       <TableCell className="font-medium">
-                        {registration.player.name}
+                        <div className="flex items-center gap-2">
+                          <div className="flex-shrink-0">
+                            {registration.player.profileImage ? (
+                              <img
+                                src={getPlayerProfileUrl(registration.player.profileImage) || ""}
+                                alt={registration.player.name}
+                                className="w-8 h-8 rounded-full object-cover border"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src =
+                                    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"%3E%3C/path%3E%3Ccircle cx="12" cy="7" r="4"%3E%3C/circle%3E%3C/svg%3E';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                  <circle cx={12} cy={7} r={4} />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <div>{registration.player.name}</div>
+                        </div>
                       </TableCell>
                       <TableCell>{registration.player.uniqueIdNumber}</TableCell>
                       <TableCell>{registration.player.position || 'N/A'}</TableCell>

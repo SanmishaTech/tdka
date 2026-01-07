@@ -147,6 +147,8 @@ const CompetitionForm = ({
   // State to track if we should keep the popover open
   const [keepOpen, setKeepOpen] = useState(false);
 
+  const [clubSearch, setClubSearch] = useState("");
+
   // Effect to handle keeping the popover open when selecting groups
   useEffect(() => {
     if (keepOpen) {
@@ -236,10 +238,23 @@ const CompetitionForm = ({
   const { data: clubsData, isLoading: isLoadingClubs } = useQuery({
     queryKey: ["clubs"],
     queryFn: async (): Promise<Club[]> => {
-      const response = await get("/clubs");
+      const response = await get("/clubs", {
+        page: 1,
+        limit: 5000,
+        sortBy: "clubName",
+        sortOrder: "asc",
+      });
       return response.clubs || response;
     },
     refetchOnWindowFocus: false,
+  });
+
+  const normalizedClubSearch = clubSearch.trim().toLowerCase();
+  const filteredClubs = (clubsData || []).filter((club) => {
+    if (!normalizedClubSearch) return true;
+    const name = (club.clubName || "").toLowerCase();
+    const city = (club.city || "").toLowerCase();
+    return name.includes(normalizedClubSearch) || city.includes(normalizedClubSearch);
   });
 
   // Query for fetching competition data in edit mode
@@ -691,14 +706,27 @@ const CompetitionForm = ({
 
                       <div className="border-t pt-2">
                         <div className="text-sm font-medium mb-1">Available Clubs:</div>
+                        <div className="mb-2">
+                          <Input
+                            placeholder="Search clubs..."
+                            value={clubSearch}
+                            onChange={(e) => setClubSearch(e.target.value)}
+                            disabled={isFormLoading}
+                          />
+                        </div>
                         {isLoadingClubs ? (
                           <div className="flex items-center justify-center p-2">
                             <LoaderCircle className="h-4 w-4 animate-spin" />
                             <span className="ml-2">Loading clubs...</span>
                           </div>
                         ) : (
-                          <div className="max-h-[200px] overflow-y-auto" style={{ maxHeight: "calc(5 * 36px)", scrollbarWidth: "none", msOverflowStyle: "none" }}>
-                            {clubsData?.map((club) => {
+                          <div className="max-h-[240px] overflow-y-auto pr-1">
+                            {filteredClubs.length === 0 ? (
+                              <div className="text-sm text-muted-foreground px-2 py-1.5">
+                                No clubs found
+                              </div>
+                            ) : null}
+                            {filteredClubs.map((club) => {
                               const clubId = club.id.toString();
                               const isSelected = field.value?.includes(clubId) || false;
                               return (
