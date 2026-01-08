@@ -21,6 +21,7 @@ import TalukaList from "@/modules/place/PlaceList";
 import CreateTaluka from "@/modules/place/CreatePlace";
 import EditTaluka from "@/modules/place/EditPlace";
 import { RegionList, CreateRegion, EditRegion } from "@/modules/region";
+import { RefereeList, CreateReferee, EditReferee } from "@/modules/referee";
 import ClubList from "@/modules/club/ClubList";
 import CreateClub from "./modules/club/CreateClub";
 import EditClub from "./modules/club/EditClub";
@@ -172,6 +173,31 @@ const App = () => {
               element={
                 <ProtectedRoute roles={['admin']}>
                   <EditRegion />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/referees"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <RefereeList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/referees/create"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <CreateReferee />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/referees/edit/:id"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <EditReferee />
                 </ProtectedRoute>
               }
             />

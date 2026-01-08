@@ -52,6 +52,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -91,10 +98,9 @@ const CompetitionList = () => {
 
   // Referee dialog state
   const [refereeDialogOpen, setRefereeDialogOpen] = useState(false);
-  const [refereeEmail, setRefereeEmail] = useState("");
-  const [refereePassword, setRefereePassword] = useState("");
   const [existingReferee, setExistingReferee] = useState<any | null>(null);
   const [isFetchingReferee, setIsFetchingReferee] = useState(false);
+  const [selectedRefereeId, setSelectedRefereeId] = useState<string>("");
 
   // Fetch competitions
   const {
@@ -107,37 +113,42 @@ const CompetitionList = () => {
     queryFn: () => get("/competitions", { page, limit, search, sortBy, sortOrder }),
   });
 
-  // Create/assign referee mutation
-  const createRefereeMutation = useMutation({
+  const {
+    data: refereesData,
+    isLoading: isLoadingReferees,
+  } = useQuery({
+    queryKey: ["referees", "all"],
+    queryFn: () =>
+      get("/referees", {
+        page: 1,
+        limit: 1000,
+        search: "",
+        sortBy: "createdAt",
+        sortOrder: "asc",
+      }),
+    enabled: !!refereeDialogOpen && isAdmin,
+  });
+
+  // Assign referee mutation
+  const assignRefereeMutation = useMutation({
     mutationFn: async () => {
       if (!selectedCompetition) throw new Error("No competition selected");
+      if (!selectedRefereeId) throw new Error("No referee selected");
       const path = `/competitions/${selectedCompetition.id}/referee`;
-      if (existingReferee) {
-        // Update existing referee
-        return await put(path, {
-          email: refereeEmail || undefined,
-          password: refereePassword || undefined,
-        });
-      } else {
-        // Create new referee
-        return await post(path, {
-          email: refereeEmail,
-          password: refereePassword,
-        });
-      }
+      const payload = { refereeId: Number(selectedRefereeId) };
+      return existingReferee ? await put(path, payload) : await post(path, payload);
     },
     onSuccess: () => {
       const updated = !!existingReferee;
-      toast.success(updated ? "Referee updated successfully" : "Referee created and assigned successfully");
+      toast.success(updated ? "Referee updated successfully" : "Referee assigned successfully");
       setRefereeDialogOpen(false);
-      setRefereeEmail("");
-      setRefereePassword("");
       setSelectedCompetition(null);
       setExistingReferee(null);
+      setSelectedRefereeId("");
       queryClient.invalidateQueries({ queryKey: ["competitions"] });
     },
     onError: (error: any) => {
-      toast.error(error?.message || error?.errors?.message || (existingReferee ? "Failed to update referee" : "Failed to create referee"));
+      toast.error(error?.message || error?.errors?.message || (existingReferee ? "Failed to update referee" : "Failed to assign referee"));
     },
   });
 
@@ -197,18 +208,17 @@ const CompetitionList = () => {
   // Handle open referee dialog
   const handleOpenRefereeDialog = async (competition: any) => {
     setSelectedCompetition(competition);
-    setRefereeEmail("");
-    setRefereePassword("");
     setExistingReferee(null);
+    setSelectedRefereeId("");
     setRefereeDialogOpen(true);
     // Fetch existing referee details if any
     try {
       setIsFetchingReferee(true);
       const data: any = await get(`/competitions/${competition.id}/referee`);
       const ref = data?.referee || data;
-      if (ref?.email) {
+      if (ref?.id) {
         setExistingReferee(ref);
-        setRefereeEmail(ref.email);
+        setSelectedRefereeId(String(ref.id));
       } else {
         setExistingReferee(null);
       }
@@ -610,33 +620,44 @@ const CompetitionList = () => {
             </DialogTitle>
             <DialogDescription>
               {existingReferee
-                ? 'A referee is already assigned. You can update the email and/or password.'
-                : 'Create a single referee account for this competition. Provide an email and password. Only one referee is allowed per competition.'}
+                ? 'A referee is already assigned. Select another referee to update the assignment.'
+                : 'Select a referee to assign to this competition. Only one referee is allowed per competition.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="referee-email">Email</Label>
-              <Input
-                id="referee-email"
-                type="email"
-                placeholder={isFetchingReferee ? 'Loading...' : 'referee@example.com'}
-                value={refereeEmail}
-                onChange={(e) => setRefereeEmail(e.target.value)}
-                disabled={isFetchingReferee || createRefereeMutation.isPending}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="referee-password">Password</Label>
-              <Input
-                id="referee-password"
-                type="password"
-                placeholder={existingReferee ? 'Leave blank to keep current password' : 'Enter a password'}
-                value={refereePassword}
-                onChange={(e) => setRefereePassword(e.target.value)}
-                disabled={createRefereeMutation.isPending}
-              />
+              <Label htmlFor="referee-select">Referee</Label>
+              <Select
+                value={selectedRefereeId || undefined}
+                onValueChange={(v) => setSelectedRefereeId(v)}
+                disabled={isFetchingReferee || isLoadingReferees || assignRefereeMutation.isPending}
+              >
+                <SelectTrigger id="referee-select" className="w-full">
+                  <SelectValue
+                    placeholder={
+                      isLoadingReferees
+                        ? 'Loading referees...'
+                        : 'Select a referee'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {(refereesData?.referees || []).map((r: any) => {
+                    const fullName = [r?.firstName, r?.middleName, r?.lastName]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim();
+                    const label = fullName || r?.user?.email || r?.emailId || `Referee #${r?.id}`;
+                    const userIdValue = String(r?.userId);
+                    return (
+                      <SelectItem key={userIdValue} value={userIdValue}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -645,17 +666,13 @@ const CompetitionList = () => {
               Cancel
             </Button>
             <Button
-              onClick={() => createRefereeMutation.mutate()}
-              disabled={
-                createRefereeMutation.isPending ||
-                !refereeEmail ||
-                (!existingReferee && !refereePassword) // password required only when creating
-              }
+              onClick={() => assignRefereeMutation.mutate()}
+              disabled={assignRefereeMutation.isPending || !selectedRefereeId}
             >
-              {(createRefereeMutation.isPending || isFetchingReferee) && (
+              {(assignRefereeMutation.isPending || isFetchingReferee) && (
                 <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {existingReferee ? 'Update Referee' : 'Create Referee'}
+              {existingReferee ? 'Update Referee' : 'Assign Referee'}
             </Button>
           </DialogFooter>
         </DialogContent>

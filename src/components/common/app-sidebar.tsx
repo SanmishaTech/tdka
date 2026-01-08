@@ -7,6 +7,7 @@ import {
   Map,
   LayoutDashboard,
   Trophy,
+  UserCheck,
 } from "lucide-react";
 import { NavProjects } from "@/components/common/nav-projects";
 import { NavUser } from "@/components/common/nav-user";
@@ -47,6 +48,11 @@ const initialData = {
           name: "Places",
           url: "/talukas",
           icon: Map,
+        },
+        {
+          name: "Referees",
+          url: "/referees",
+          icon: UserCheck,
         },
         {
           name: "Club",
@@ -306,10 +312,7 @@ function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <div className="flex items-center gap-1">
                   <Toggle
                     pressed={isDarkMode}
-                    onPressedChange={(pressed) => {
-                      setIsDarkMode(pressed);
-                      localStorage.setItem("theme", pressed ? "dark" : "light");
-                    }}
+                    onPressedChange={() => toggleDarkMode()}
                     aria-label="Toggle dark mode"
                     size="sm"
                     className="h-6 w-6 p-1 shrink-0"
