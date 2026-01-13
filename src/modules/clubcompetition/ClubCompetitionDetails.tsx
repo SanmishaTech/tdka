@@ -156,15 +156,28 @@ const ClubCompetitionDetails = () => {
 
   const handleDownloadMeritCertificate = async (playerId: number, playerName?: string) => {
     try {
+      const safeName = String(playerName || `player_${playerId}`).replace(/[^a-z0-9_-]+/gi, "_");
       const resp: any = await get(
         `/competitions/${id}/players/${playerId}/merit-certificate`,
         undefined,
         { responseType: "blob" }
       );
 
-      const blob = resp?.data;
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener,noreferrer");
+      const blob: Blob | undefined = resp?.data;
+      if (!blob) {
+        throw new Error('Empty PDF response');
+      }
+      const pdfBlob = blob.type ? blob : new Blob([blob], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(pdfBlob);
+      const opened = window.open(url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `Merit_Certificate_${safeName}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
       window.setTimeout(() => {
         window.URL.revokeObjectURL(url);
       }, 60_000);
