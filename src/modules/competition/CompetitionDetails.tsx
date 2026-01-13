@@ -244,6 +244,13 @@ const CompetitionDetails = () => {
               </div>
             </div>
 
+            {competition?.weight && (
+              <div className="space-y-1">
+                <span className="font-medium">Weight:</span>{" "}
+                <span className="text-sm text-muted-foreground">{competition.weight}</span>
+              </div>
+            )}
+
             {/* Participating Groups */}
             {competition?.groups && competition.groups.length > 0 && (
               <div className="space-y-3">

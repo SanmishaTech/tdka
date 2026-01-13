@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LoaderCircle, Check, ChevronsUpDown, ArrowLeft } from "lucide-react";
+import { LoaderCircle, Check, ArrowLeft } from "lucide-react";
 
 // PrimeReact Editor
 import { Editor } from 'primereact/editor';
@@ -21,18 +21,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +41,7 @@ interface CompetitionData {
   age?: string; // Legacy field, will be removed
   lastEntryDate: string;
   ageEligibilityDate?: string; // Reference date for age calculations
+  weight?: string;
   rules?: string; // Competition rules as rich text HTML
   createdAt: string;
   updatedAt: string;
@@ -96,18 +85,8 @@ const competitionFormSchema = z.object({
   ageEligibilityDate: z.string()
     .min(1, "Age eligibility date is required")
     .max(255, "Age eligibility date must not exceed 255 characters"),
+  weight: z.string().max(255, "Weight must not exceed 255 characters").optional(),
 });
-
-// Helper to extract user-friendly message from API error
-const prettifyFieldName = (key: string): string => {
-  // Remove table prefix and suffix if present
-  const parts = key.split("_");
-  let field = parts.length > 1 ? parts[1] : key;
-  // Remove trailing 'key' or 'id'
-  field = field.replace(/(Id|Key)$/, "");
-  // Convert camelCase to spaces
-  return field.replace(/([A-Z])/g, " $1").toLowerCase();
-};
 
 // Helper to extract error message from API error
 const extractErrorMessage = (error: any): string | null => {
@@ -141,21 +120,7 @@ const CompetitionForm = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // State for managing selected groups and popover
-  const [open, setOpen] = useState(false);
-
-  // State to track if we should keep the popover open
-  const [keepOpen, setKeepOpen] = useState(false);
-
   const [clubSearch, setClubSearch] = useState("");
-
-  // Effect to handle keeping the popover open when selecting groups
-  useEffect(() => {
-    if (keepOpen) {
-      setOpen(true);
-      setKeepOpen(false);
-    }
-  }, [keepOpen]);
 
   // Initialize form with Shadcn Form
   const form = useForm<CompetitionFormInputs>({
@@ -170,6 +135,7 @@ const CompetitionForm = ({
       lastEntryDate: "",
       rules: "",
       ageEligibilityDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
+      weight: "",
     },
   });
 
@@ -220,10 +186,6 @@ const CompetitionForm = ({
     };
   };
 
-  // Watch the age eligibility date to update category
-  const ageEligibilityDate = form.watch("ageEligibilityDate");
-  const ageCategory = calculateAgeCategory(ageEligibilityDate);
-
   // Query to fetch all available groups
   const { data: groupsData, isLoading: isLoadingGroups } = useQuery({
     queryKey: ["groups"],
@@ -232,6 +194,18 @@ const CompetitionForm = ({
       return response.groups || response;
     },
     refetchOnWindowFocus: false,
+  });
+
+  // Watch the age eligibility date to update category
+  const ageEligibilityDate = form.watch("ageEligibilityDate");
+  const ageCategory = calculateAgeCategory(ageEligibilityDate);
+  const selectedGroupIds = form.watch("groups");
+  const selectedGroups = (selectedGroupIds || []).map((groupId) =>
+    groupsData?.find((g) => g.id.toString() === groupId)
+  );
+  const hasMenOrWomenGroupSelected = selectedGroups.some((g) => {
+    const name = String(g?.groupName || "").trim().toLowerCase();
+    return name === "men" || name === "women";
   });
 
   // Query to fetch all available clubs
@@ -321,6 +295,7 @@ const CompetitionForm = ({
       form.setValue("lastEntryDate", competitionData.lastEntryDate || "");
       form.setValue("rules", competitionData.rules || "");
       form.setValue("ageEligibilityDate", competitionData.ageEligibilityDate || new Date().toISOString().split('T')[0]);
+      form.setValue("weight", competitionData.weight || "");
     }
   }, [competitionData, mode, form]);
 
@@ -492,6 +467,11 @@ const CompetitionForm = ({
                   )}
                 />
               </div>
+              {hasMenOrWomenGroupSelected && (
+                <div className="border rounded-md p-3 bg-muted/50 text-sm text-muted-foreground">
+                  Note: For Men/Women competitions, clubs may include at most 3 U18 (age 18 or below) players within the max player limit.
+                </div>
+              )}
               {/* Competition Name and Last Entry Date Fields - Side by Side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Competition Name Field */}
@@ -586,6 +566,26 @@ const CompetitionForm = ({
                   )}
                 />
               </div>
+
+              {/* Weight Field */}
+              <FormField
+                control={form.control}
+                name="weight"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weight</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter weight"
+                        {...field}
+                        disabled={isFormLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {/* Groups Field - Multiselect */}
               <FormField
                 control={form.control}

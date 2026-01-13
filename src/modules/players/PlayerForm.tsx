@@ -235,6 +235,34 @@ const PlayerForm = ({
     },
   });
 
+  const calculateAge = (dateOfBirth: string, refDate: Date = new Date()) => {
+    const birthDate = new Date(`${dateOfBirth}T00:00:00`);
+    if (Number.isNaN(birthDate.getTime())) return null;
+    let age = refDate.getFullYear() - birthDate.getFullYear();
+    const monthDiff = refDate.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && refDate.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return Number.isFinite(age) ? age : null;
+  };
+
+  const dateOfBirth = form.watch("dateOfBirth") as string;
+  const playerAge = dateOfBirth ? calculateAge(dateOfBirth) : null;
+
+  const isGroupEligibleByAge = (group: Group, age: number | null) => {
+    if (typeof age !== "number") return true;
+
+    const groupName = String(group?.groupName || "").trim().toLowerCase();
+    const isMenOrWomen = groupName === "men" || groupName === "women";
+    if (isMenOrWomen) return age > 18;
+
+    const ageFromGroupAge = parseInt(String(group?.age || "").match(/\d+/)?.[0] || "", 10);
+    const ageFromGroupName = parseInt(groupName.match(/\d+/)?.[0] || "", 10);
+    const ageLimit = Number.isFinite(ageFromGroupAge) ? ageFromGroupAge : ageFromGroupName;
+    if (!Number.isFinite(ageLimit)) return true;
+    return age <= ageLimit;
+  };
+
   // Query to fetch all available groups
   const { data: groupsData, isLoading: isLoadingGroups } = useQuery({
     queryKey: ["groups"],
@@ -244,6 +272,23 @@ const PlayerForm = ({
     },
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (typeof playerAge !== "number") return;
+    if (!Array.isArray(groupsData) || groupsData.length === 0) return;
+
+    const eligibleIds = new Set(
+      groupsData
+        .filter((g) => isGroupEligibleByAge(g, playerAge))
+        .map((g) => g.id.toString())
+    );
+
+    const current = (form.getValues("groupIds") as string[]) || [];
+    const next = current.filter((id) => eligibleIds.has(id));
+    if (next.length !== current.length) {
+      form.setValue("groupIds", next, { shouldValidate: true });
+    }
+  }, [playerAge, groupsData, form]);
 
   // Query for fetching player data in edit mode
   const { data: playerData, isLoading: isFetchingPlayer, error: fetchError } = useQuery({
@@ -947,7 +992,9 @@ const PlayerForm = ({
 
           {/* Groups Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">Groups</h3>
+            <h3 className="text-lg font-medium border-b pb-2">
+              Groups{typeof playerAge === "number" ? ` (Age: ${playerAge})` : ""}
+            </h3>
             
             {/* Groups Field - Multiselect */}
             <FormField
@@ -993,14 +1040,17 @@ const PlayerForm = ({
                           {groupsData?.map((group) => {
                             const groupId = group.id.toString();
                             const isSelected = field.value.includes(groupId);
+                            const eligibleByAge = isGroupEligibleByAge(group, playerAge);
                             return (
                               <div
                                 key={group.id}
                                 className={cn(
                                   "flex items-center px-2 py-1.5 text-sm cursor-pointer rounded-sm",
-                                  isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                                  isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+                                  !eligibleByAge ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                                 onClick={() => {
+                                  if (!eligibleByAge) return;
                                   // Toggle the selection
                                   const currentValues = [...field.value];
                                   const newValues = isSelected

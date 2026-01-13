@@ -165,6 +165,13 @@ const CompetitionClubDetails = () => {
                   <span className="font-medium">Max Players:</span>
                   <span>{competition?.maxPlayers}</span>
                 </div>
+
+                {competition?.weight && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Weight:</span>
+                    <span>{competition.weight}</span>
+                  </div>
+                )}
               </div>
             </div>
 

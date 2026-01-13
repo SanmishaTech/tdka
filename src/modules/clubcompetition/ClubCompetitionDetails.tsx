@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -130,56 +130,156 @@ const ClubCompetitionDetails = () => {
   };
 
   // Calculate age from date of birth
-  const calculateAge = (dateOfBirth: string) => {
-    const today = new Date();
+  const calculateAge = (dateOfBirth: string, refDate: Date = new Date()) => {
     const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    let age = refDate.getFullYear() - birthDate.getFullYear();
+    const monthDiff = refDate.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && refDate.getDate() < birthDate.getDate())) {
       age--;
     }
     return age;
   };
 
+  const parseEndOfDay = (dateString?: string) => {
+    if (!dateString) return null;
+    const s = String(dateString).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const d = new Date(`${s}T23:59:59`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const competitionEnd = parseEndOfDay(competition?.toDate);
+  const isCompetitionOver = competitionEnd ? new Date() > competitionEnd : false;
+
+  const handleDownloadMeritCertificate = async (playerId: number, playerName?: string) => {
+    try {
+      const resp: any = await get(
+        `/competitions/${id}/players/${playerId}/merit-certificate`,
+        undefined,
+        { responseType: "blob" }
+      );
+
+      const blob = resp?.data;
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (error: any) {
+      toast.error(error?.errors?.message || error?.message || "Failed to download merit certificate");
+    }
+  };
+
+  const getPlayerAge = (player: any, refDate: Date = new Date()) => {
+    if (!player) return null;
+    if (player.dateOfBirth) return calculateAge(player.dateOfBirth, refDate);
+    if (typeof player.age === "number") return player.age;
+    return null;
+  };
+
+  const ageReferenceDate = new Date();
+  const isSeniorCompetition = competition?.ageEligibilityDate
+    ? calculateAge(competition.ageEligibilityDate, new Date()) > 30
+    : false;
+
+  const hasMenOrWomenGroupSelected = Array.isArray(competition?.groups)
+    ? competition.groups.some((g: any) => {
+      const name = String(g?.groupName || "").trim().toLowerCase();
+      return name === "men" || name === "women";
+    })
+    : false;
+
+  const allowU18Extras = isSeniorCompetition && hasMenOrWomenGroupSelected;
+
   // Check if player is eligible based on age
   const isPlayerEligible = (player: any) => {
-    if (!competition?.age || !player.dateOfBirth) return true;
+    if (!player?.dateOfBirth) return true;
 
-    const playerAge = calculateAge(player.dateOfBirth);
-    const ageRange = competition.age.toLowerCase();
+    // Primary eligibility: competition ageEligibilityDate acts as a DOB cutoff.
+    // Players born on or after this date are eligible.
+    if (competition?.ageEligibilityDate) {
+      const cutoff = new Date(`${competition.ageEligibilityDate}T00:00:00`);
+      const dobStr = String(player.dateOfBirth);
+      const dob = /^\d{4}-\d{2}-\d{2}$/.test(dobStr) ? new Date(`${dobStr}T00:00:00`) : new Date(dobStr);
+      if (!Number.isNaN(cutoff.getTime()) && !Number.isNaN(dob.getTime())) {
+        if (dob < cutoff) return false;
+      }
+    } else if (competition?.age) {
+      // Legacy fallback: parse age label/range and compare using current age.
+      const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
+      const ageRange = competition.age.toLowerCase();
 
-    // Parse age range (e.g., "16-18", "Under 21", "Above 18", "21", "U21", "U-21")
-    if (ageRange.includes("-") && !ageRange.includes("u-")) {
-      // Range format like "16-18"
-      const [minAge, maxAge] = ageRange.split("-").map(Number);
-      return playerAge >= minAge && playerAge <= maxAge;
-    } else if (ageRange.includes("under") || ageRange.startsWith("u")) {
-      // Under format like "Under 21", "U21", "U-21"
-      const maxAge = parseInt(ageRange.match(/\d+/)?.[0] || "0");
-      return playerAge <= maxAge;
-    } else if (ageRange.includes("above") || ageRange.includes("over")) {
-      // Above format like "Above 18", "Over 18"
-      const minAge = parseInt(ageRange.match(/\d+/)?.[0] || "0");
-      return playerAge >= minAge;
-    } else if (/^\d+$/.test(ageRange)) {
-      // Single number format like "21" (treat as "equal to or under")
-      const maxAge = parseInt(ageRange);
-      return playerAge <= maxAge;
+      // Parse age range (e.g., "16-18", "Under 21", "Above 18", "21", "U21", "U-21")
+      if (ageRange.includes("-") && !ageRange.includes("u-")) {
+        // Range format like "16-18"
+        const [minAge, maxAge] = ageRange.split("-").map(Number);
+        if (!(playerAge >= minAge && playerAge <= maxAge)) return false;
+      } else if (ageRange.includes("under") || ageRange.startsWith("u")) {
+        // Under format like "Under 21", "U21", "U-21"
+        const maxAge = parseInt(ageRange.match(/\d+/)?.[0] || "0");
+        if (!(playerAge <= maxAge)) return false;
+      } else if (ageRange.includes("above") || ageRange.includes("over")) {
+        // Above format like "Above 18", "Over 18"
+        const minAge = parseInt(ageRange.match(/\d+/)?.[0] || "0");
+        if (!(playerAge >= minAge)) return false;
+      } else if (/^\d+$/.test(ageRange)) {
+        // Single number format like "21" (treat as "equal to or under")
+        const maxAge = parseInt(ageRange);
+        if (!(playerAge <= maxAge)) return false;
+      }
     }
+
+    // Senior competition U18 rule (based on current age)
+    const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
+    if (isSeniorCompetition && playerAge <= 18 && !allowU18Extras) return false;
 
     return true;
   };
 
   // Handle player selection with animation support
-  const handlePlayerSelect = (playerId: number, checked: boolean) => {
+  const selectedPlayersData = eligiblePlayers?.players?.filter((p: any) => selectedPlayers.includes(p.id)) || [];
+  const selectedU18Count = selectedPlayersData.filter((p: any) => calculateAge(p.dateOfBirth, ageReferenceDate) <= 18).length;
+  const existingU18Count = registeredPlayers?.registrations?.filter((reg: any) => {
+    const age = getPlayerAge(reg.player, ageReferenceDate);
+    return typeof age === "number" && age <= 18;
+  }).length || 0;
+  const remainingU18Slots = allowU18Extras
+    ? Math.max(0, 3 - existingU18Count - selectedU18Count)
+    : 0;
+
+  const handlePlayerSelect = (player: any, checked: boolean) => {
+    const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
+    const isU18 = playerAge <= 18;
+
     if (checked) {
-      if (selectedPlayers.length < (competition?.maxPlayers || 0)) {
-        setSelectedPlayers(prev => [...prev, playerId]);
-      } else {
+      if (selectedPlayers.includes(player.id)) return;
+      if (selectedPlayers.length >= (competition?.maxPlayers || 0)) {
         toast.error(`Maximum ${competition?.maxPlayers} players allowed`);
+        return;
       }
+      if (isSeniorCompetition) {
+        if (!allowU18Extras && isU18) {
+          toast.error("U18 (age 18 or below) players are not allowed for this competition");
+          return;
+        }
+        if (allowU18Extras && isU18) {
+          const totalU18 = existingU18Count + selectedU18Count + 1;
+          if (totalU18 > 3) {
+            const remaining = Math.max(0, 3 - existingU18Count - selectedU18Count);
+            toast.error(remaining === 0
+              ? "Maximum 3 U18 (age 18 or below) players already selected/registered"
+              : `Only ${remaining} U18 (age 18 or below) slot(s) remaining`);
+            return;
+          }
+        }
+      }
+
+      setSelectedPlayers(prev => [...prev, player.id]);
     } else {
-      setSelectedPlayers(prev => prev.filter(id => id !== playerId));
+      setSelectedPlayers(prev => prev.filter(id => id !== player.id));
     }
   };
 
@@ -283,8 +383,11 @@ const ClubCompetitionDetails = () => {
                             ?.filter((player: any) => !selectedPlayers.includes(player.id))
                             ?.map((player: any) => {
                               const eligible = isPlayerEligible(player);
-                              const playerAge = calculateAge(player.dateOfBirth);
-                              const canSelect = eligible && selectedPlayers.length < (competition?.maxPlayers || 0);
+                              const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
+                              const u18Constraint = !(isSeniorCompetition && playerAge <= 18 && (
+                                (!allowU18Extras) || (allowU18Extras && remainingU18Slots <= 0)
+                              ));
+                              const canSelect = eligible && selectedPlayers.length < (competition?.maxPlayers || 0) && u18Constraint;
 
                               return (
                                 <motion.div
@@ -300,11 +403,16 @@ const ClubCompetitionDetails = () => {
                                     }`}
                                   onClick={() => {
                                     if (canSelect) {
-                                      handlePlayerSelect(player.id, true);
+                                      handlePlayerSelect(player, true);
                                     } else if (eligible && selectedPlayers.length >= (competition?.maxPlayers || 0)) {
                                       toast.error(`Maximum ${competition?.maxPlayers} players allowed`);
+                                    } else if (eligible && isSeniorCompetition && playerAge <= 18 && allowU18Extras && remainingU18Slots <= 0) {
+                                      toast.error("U18 (age 18 or below) slots are full (max 3)");
+                                    } else if (eligible && isSeniorCompetition && playerAge <= 18 && !allowU18Extras) {
+                                      toast.error("U18 (age 18 or below) players are not allowed for this competition");
                                     }
                                   }}
+
                                   whileHover={canSelect ? { scale: 1.02 } : {}}
                                   whileTap={canSelect ? { scale: 0.98 } : {}}
                                 >
@@ -372,7 +480,7 @@ const ClubCompetitionDetails = () => {
                               const player = eligiblePlayers?.players?.find((p: any) => p.id === playerId);
                               if (!player) return null;
 
-                              const playerAge = calculateAge(player.dateOfBirth);
+                              const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
                               const isAlreadyRegistered = registeredPlayers?.registrations?.some((reg: any) => reg.player.id === playerId) || false;
 
                               return (
@@ -387,7 +495,7 @@ const ClubCompetitionDetails = () => {
                                     ? 'bg-green-50 border-green-200 hover:bg-green-100'
                                     : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
                                     }`}
-                                  onClick={() => handlePlayerSelect(player.id, false)}
+                                  onClick={() => handlePlayerSelect(player, false)}
                                   whileHover={{ scale: 1.02 }}
                                   whileTap={{ scale: 0.98 }}
                                 >
@@ -514,6 +622,16 @@ const ClubCompetitionDetails = () => {
                 </div>
                 <div className="text-sm text-muted-foreground">Age Category</div>
               </div>
+
+              {/* Weight */}
+              {competition?.weight && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Weight</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">{competition.weight}</div>
+                </div>
+              )}
             </div>
 
             {/* Participating Groups */}
@@ -595,7 +713,12 @@ const ClubCompetitionDetails = () => {
                       </TableCell>
                       <TableCell>{registration.player.uniqueIdNumber}</TableCell>
                       <TableCell>{registration.player.position || 'N/A'}</TableCell>
-                      <TableCell>{registration.player.age} years</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const age = getPlayerAge(registration.player);
+                          return typeof age === "number" ? `${age} years` : "";
+                        })()}
+                      </TableCell>
                       <TableCell>
                         {formatDate(registration.registrationDate)}
                       </TableCell>
@@ -607,19 +730,29 @@ const ClubCompetitionDetails = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removePlayerMutation.mutate(registration.player.id)}
-                          disabled={removePlayerMutation.isPending}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          {removePlayerMutation.isPending ? (
-                            <LoaderCircle className="h-4 w-4 animate-spin" />
-                          ) : (
-                            "Remove"
-                          )}
-                        </Button>
+                        {isCompetitionOver ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadMeritCertificate(registration.player.id, registration.player.name)}
+                          >
+                            Download Merit Certificate
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removePlayerMutation.mutate(registration.player.id)}
+                            disabled={removePlayerMutation.isPending}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            {removePlayerMutation.isPending ? (
+                              <LoaderCircle className="h-4 w-4 animate-spin" />
+                            ) : (
+                              "Remove"
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
