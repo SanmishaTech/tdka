@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LoaderCircle, Check, ArrowLeft, Upload, X } from "lucide-react";
+import { LoaderCircle, Check, ArrowLeft, Upload, X, ChevronsUpDown } from "lucide-react";
 
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import {
   Form,
   FormControl,
   FormField,
@@ -29,6 +22,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Services and utilities
 import { get, post, put, postupload, putupload } from "@/services/apiService";
@@ -51,6 +54,7 @@ interface PlayerData {
   aadharImage?: string;
   aadharVerified: boolean;
   isSuspended: boolean;
+  clubId?: number | null;
   groups: Group[];
   createdAt: string;
   updatedAt: string;
@@ -61,6 +65,19 @@ interface Group {
   groupName: string;
   gender: string;
   age: string;
+}
+
+interface Club {
+  id: number;
+  clubName: string;
+  place?: {
+    id?: number;
+    placeName?: string;
+    region?: {
+      id?: number;
+      regionName?: string;
+    };
+  };
 }
 
 // Create schema for player form
@@ -102,6 +119,7 @@ const playerFormSchemaBase = z.object({
     .refine(val => /^\d+$/.test(val), {
       message: "Mobile number can only contain digits",
     }),
+  clubId: z.string().optional(),
   groupIds: z.array(z.string())
     .min(1, "At least one group must be selected"),
 });
@@ -113,6 +131,10 @@ const playerFormSchemaCreate = playerFormSchemaBase.extend({
     .refine(val => /^\d+$/.test(val), {
       message: "Aadhar number can only contain digits",
     })
+});
+
+const playerFormSchemaCreateAdmin = playerFormSchemaCreate.extend({
+  clubId: z.string().min(1, "Club is required"),
 });
 
 // Make aadharNumber optional for edit mode
@@ -139,7 +161,7 @@ const extractErrorMessage = (error: any): string | undefined => {
   return error?.message;
 };
 
-type PlayerFormInputs = z.infer<typeof playerFormSchemaCreate> | z.infer<typeof playerFormSchemaEdit>;
+type PlayerFormInputs = z.infer<typeof playerFormSchemaCreate> | z.infer<typeof playerFormSchemaCreateAdmin> | z.infer<typeof playerFormSchemaEdit>;
 
 interface PlayerFormProps {
   mode: "create" | "edit";
@@ -159,6 +181,19 @@ const PlayerForm = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const userStr = localStorage.getItem("user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
+
+  const backendBaseUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3000").replace(/\/$/, "");
+  const resolveUploadUrl = (p?: string | null) => {
+    const s = String(p || "").trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s)) return s;
+    const normalized = s.replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${backendBaseUrl}/${normalized}`;
+  };
+
   // Profile image state
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
@@ -173,6 +208,7 @@ const PlayerForm = ({
   const [existingAadharImage, setExistingAadharImage] = useState<string | null>(null);
 
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [clubPopoverOpen, setClubPopoverOpen] = useState(false);
 
   // Handle Aadhaar verification
   const handleVerifyAadhar = async () => {
@@ -220,7 +256,11 @@ const PlayerForm = ({
 
   // Initialize form with Shadcn Form
   const form = useForm<PlayerFormInputs>({
-    resolver: zodResolver(mode === "create" ? playerFormSchemaCreate : playerFormSchemaEdit),
+    resolver: zodResolver(
+      mode === "create"
+        ? (isAdmin ? playerFormSchemaCreateAdmin : playerFormSchemaCreate)
+        : playerFormSchemaEdit
+    ),
     defaultValues: {
       firstName: "",
       middleName: "",
@@ -231,6 +271,7 @@ const PlayerForm = ({
       address: "",
       mobile: "",
       aadharNumber: "",
+      clubId: "",
       groupIds: [],
     },
   });
@@ -270,6 +311,21 @@ const PlayerForm = ({
       const response = await get("/groups");
       return response.groups || response;
     },
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: clubsData, isLoading: isLoadingClubs } = useQuery({
+    queryKey: ["clubs"],
+    queryFn: async (): Promise<Club[]> => {
+      const response = await get("/clubs", {
+        page: 1,
+        limit: 5000,
+        sortBy: "clubName",
+        sortOrder: "asc",
+      });
+      return response.clubs || response;
+    },
+    enabled: isAdmin,
     refetchOnWindowFocus: false,
   });
 
@@ -315,6 +371,9 @@ const PlayerForm = ({
       form.setValue("address", playerData.address || "");
       form.setValue("mobile", playerData.mobile || "");
       form.setValue("aadharNumber", playerData.aadharNumber || "");
+      if (isAdmin) {
+        form.setValue("clubId", playerData.clubId ? String(playerData.clubId) : "");
+      }
       
       // Set group IDs
       if (playerData.groups && Array.isArray(playerData.groups) && playerData.groups.length > 0) {
@@ -325,16 +384,14 @@ const PlayerForm = ({
 
       // Set existing profile image
       if (playerData.profileImage) {
-        const isDev = import.meta.env.DEV;
-        const imageUrl = isDev ? `/${playerData.profileImage}` : `${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/${playerData.profileImage}`;
+        const imageUrl = resolveUploadUrl(playerData.profileImage);
         setExistingProfileImage(imageUrl);
         setProfileImagePreview(imageUrl);
       }
 
       // Set existing aadhar image
       if (playerData.aadharImage) {
-        const isDev = import.meta.env.DEV;
-        const imageUrl = isDev ? `/${playerData.aadharImage}` : `${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/${playerData.aadharImage}`;
+        const imageUrl = resolveUploadUrl(playerData.aadharImage);
         setExistingAadharImage(imageUrl);
         setAadharImagePreview(imageUrl);
       }
@@ -353,8 +410,6 @@ const PlayerForm = ({
     }
   }, [fetchError, mode, onSuccess, navigate]);
 
-
-
   // Mutation for creating a player
   const createPlayerMutation = useMutation({
     mutationFn: async (data: PlayerFormInputs) => {
@@ -370,6 +425,7 @@ const PlayerForm = ({
         formData.append('address', data.address);
         formData.append('mobile', data.mobile);
         formData.append('aadharNumber', data.aadharNumber!);
+        if (isAdmin && data.clubId) formData.append('clubId', data.clubId);
         formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
         if (profileImageFile) formData.append('profileImage', profileImageFile);
         if (aadharImageFile) formData.append('aadharImage', aadharImageFile);
@@ -387,6 +443,7 @@ const PlayerForm = ({
           address: data.address,
           mobile: data.mobile,
           aadharNumber: data.aadharNumber,
+          ...(isAdmin && data.clubId ? { clubId: parseInt(data.clubId) } : {}),
           groupIds: data.groupIds.map(id => parseInt(id))
         };
         
@@ -432,6 +489,7 @@ const PlayerForm = ({
         formData.append('address', data.address);
         formData.append('mobile', data.mobile);
         formData.append('aadharNumber', data.aadharNumber || '');
+        if (isAdmin && data.clubId) formData.append('clubId', data.clubId);
         formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
         
         if (profileImageFile) {
@@ -454,6 +512,7 @@ const PlayerForm = ({
           address: data.address,
           mobile: data.mobile,
           aadharNumber: data.aadharNumber || null,
+          ...(isAdmin && data.clubId ? { clubId: parseInt(data.clubId) } : {}),
           groupIds: data.groupIds.map(id => parseInt(id))
         };
         
@@ -826,6 +885,79 @@ const PlayerForm = ({
                 )}
               />
             </div>
+
+            {isAdmin && (
+              <FormField
+                control={form.control}
+                name="clubId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Club
+                      {mode === "create" && <span className="text-red-500">*</span>}
+                    </FormLabel>
+                    <Popover open={clubPopoverOpen} onOpenChange={setClubPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={clubPopoverOpen}
+                            className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
+                            disabled={isFormLoading || isLoadingClubs || aadharVerified}
+                          >
+                            {field.value
+                              ? (clubsData || []).find((c) => c.id.toString() === field.value)?.clubName || "Select Club"
+                              : isLoadingClubs
+                                ? "Loading clubs..."
+                                : "Select Club"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search club..." />
+                          <CommandList>
+                            <CommandEmpty>No club found.</CommandEmpty>
+                            <CommandGroup>
+                              {(clubsData || []).map((club) => {
+                                const placeName = club.place?.placeName;
+                                const regionName = club.place?.region?.regionName;
+                                const rightText = [regionName, placeName].filter(Boolean).join(" • ");
+
+                                return (
+                                  <CommandItem
+                                    key={club.id}
+                                    value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
+                                    onSelect={() => {
+                                      field.onChange(club.id.toString());
+                                      setClubPopoverOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        field.value === club.id.toString() ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <span className="flex-1 truncate">{club.clubName}</span>
+                                    {rightText ? (
+                                      <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
+                                    ) : null}
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Aadhar Image Section */}
             <div className="space-y-4">

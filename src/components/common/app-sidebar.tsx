@@ -60,6 +60,11 @@ const initialData = {
           icon: UsersRound,
         },
         {
+          name: "Player",
+          url: "/players",
+          icon: UsersRound,
+        },
+        {
           name: "Group",
           url: "/groups",
           icon: UsersRound,

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -12,16 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   LoaderCircle,
+  Check,
   PenSquare,
   Search,
   Ban,
@@ -55,11 +50,22 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, patch } from "@/services/apiService";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const PlayerList = () => {
   const [page, setPage] = useState(1);
@@ -69,9 +75,30 @@ const PlayerList = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isSuspended, setIsSuspended] = useState<boolean | undefined>(undefined);
   const [aadharVerified, setAadharVerified] = useState<boolean | undefined>(undefined);
+  const [clubId, setClubId] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const userStr = localStorage.getItem("user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
+  const colCount = isAdmin ? 9 : 8;
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  const backendBaseUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3000").replace(/\/$/, "");
+  const resolveUploadUrl = (p: string) => {
+    const s = String(p || "").trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s)) return s;
+    const normalized = s.replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${backendBaseUrl}/${normalized}`;
+  };
+
+  const activeFilterCount =
+    (isSuspended !== undefined ? 1 : 0) +
+    (aadharVerified !== undefined ? 1 : 0) +
+    (isAdmin && clubId ? 1 : 0);
 
   // Fetch players
   const {
@@ -80,16 +107,33 @@ const PlayerList = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["players", page, limit, search, sortBy, sortOrder, isSuspended, aadharVerified],
-    queryFn: () => get("/players", { 
-      page, 
-      limit, 
-      search, 
-      sortBy, 
-      sortOrder,
-      isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
-      aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined
-    }),
+    queryKey: ["players", page, limit, search, sortBy, sortOrder, isSuspended, aadharVerified, clubId, isAdmin],
+    queryFn: () =>
+      get("/players", {
+        page,
+        limit,
+        search,
+        sortBy,
+        sortOrder,
+        clubId: isAdmin && clubId ? clubId : undefined,
+        isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
+        aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
+      }),
+  });
+
+  const { data: clubsData, isLoading: isLoadingClubs } = useQuery({
+    queryKey: ["clubs", "all"],
+    queryFn: async () => {
+      const response = await get("/clubs", {
+        page: 1,
+        limit: 5000,
+        sortBy: "clubName",
+        sortOrder: "asc",
+      });
+      return response.clubs || response;
+    },
+    enabled: isAdmin,
+    refetchOnWindowFocus: false,
   });
 
   // Toggle suspension mutation
@@ -161,6 +205,7 @@ const PlayerList = () => {
     } else {
       setIsSuspended(undefined);
       setAadharVerified(undefined);
+      setClubId("");
     }
     setPage(1); // Reset to first page when filters change
   };
@@ -219,6 +264,43 @@ const PlayerList = () => {
     );
   }
 
+  const handleExport = async () => {
+    if (isExporting) return;
+    try {
+      setIsExporting(true);
+      const response: any = await get(
+        "/players/export",
+        {
+          search,
+          sortBy,
+          sortOrder,
+          clubId: isAdmin && clubId ? clubId : undefined,
+          isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
+          aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
+        },
+        { responseType: "blob" }
+      );
+
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "TDKA_Players_Export.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Export downloaded");
+    } catch (error: any) {
+      toast.error(error.errors?.message || error.message || "Failed to export players");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-4 p-6">
       <Card className="border border-border">
@@ -236,7 +318,7 @@ const PlayerList = () => {
             <div className="relative flex-1 min-w-[250px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search players..."
+                placeholder="Search by name / unique ID / Aadhaar..."
                 value={search}
                 onChange={handleSearchChange}
                 className="pl-8 w-full"
@@ -248,9 +330,9 @@ const PlayerList = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
                   Filters
-                  {(isSuspended !== undefined || aadharVerified !== undefined) && (
+                  {activeFilterCount > 0 && (
                     <Badge variant="secondary" className="ml-2 px-1 py-0 h-5">
-                      {(isSuspended !== undefined ? 1 : 0) + (aadharVerified !== undefined ? 1 : 0)}
+                      {activeFilterCount}
                     </Badge>
                   )}
                 </Button>
@@ -260,10 +342,73 @@ const PlayerList = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => handleFilterChange('all')} className="flex items-center justify-between">
                   <span>All Players</span>
-                  {isSuspended === undefined && aadharVerified === undefined && (
+                  {isSuspended === undefined && aadharVerified === undefined && (!isAdmin || !clubId) && (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   )}
                 </DropdownMenuItem>
+
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Club</DropdownMenuLabel>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <span className="truncate">
+                          {clubId
+                            ? (clubsData || []).find((c: any) => String(c.id) === String(clubId))?.clubName || "Selected club"
+                            : "All Clubs"}
+                        </span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="p-0 w-89">
+                        <Command className="w-89">
+                          <CommandInput placeholder={isLoadingClubs ? "Loading clubs..." : "Search club..."} />
+                          <CommandList className="max-h-[260px]">
+                            <CommandEmpty>No club found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="All Clubs"
+                                onSelect={() => {
+                                  setClubId("");
+                                  setPage(1);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", !clubId ? "opacity-100" : "opacity-0")} />
+                                All Clubs
+                              </CommandItem>
+                              {(clubsData || []).map((club: any) => {
+                                const placeName = club?.place?.placeName;
+                                const regionName = club?.place?.region?.regionName;
+                                const rightText = [regionName, placeName].filter(Boolean).join(" • ");
+
+                                return (
+                                  <CommandItem
+                                    key={club.id}
+                                    value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
+                                    onSelect={() => {
+                                      setClubId(String(club.id));
+                                      setPage(1);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        String(club.id) === String(clubId) ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <span className="flex-1 truncate">{club.clubName}</span>
+                                    {rightText ? (
+                                      <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
+                                    ) : null}
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => handleFilterChange('active')} className="flex items-center justify-between">
@@ -308,14 +453,21 @@ const PlayerList = () => {
             </DropdownMenu>
 
             {/* Export Button */}
-            {/* <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button> */}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Export
+              </Button>
+            )}
 
             {/* Add Button */}
             <Button
@@ -326,28 +478,30 @@ const PlayerList = () => {
               Add Player
             </Button>
           </div>
-
           {/* Active Filters Display */}
-          {(isSuspended !== undefined || aadharVerified !== undefined) && (
+          {(isSuspended !== undefined || aadharVerified !== undefined || (isAdmin && clubId)) && (
             <div className="flex flex-wrap gap-2 mb-4">
               <div className="text-sm text-muted-foreground">Active filters:</div>
-              {isSuspended !== undefined && (
+              {isAdmin && clubId && (
                 <Badge variant="outline" className="flex items-center gap-1">
-                  {isSuspended ? 'Suspended' : 'Active'}
-                  <button 
-                    onClick={() => setIsSuspended(undefined)}
+                  Club: {(clubsData || []).find((c: any) => String(c.id) === String(clubId))?.clubName || clubId}
+                  <button
+                    onClick={() => {
+                      setClubId("");
+                      setPage(1);
+                    }}
                     className="ml-1 rounded-full hover:bg-muted p-0.5"
                   >
                     <XCircle className="h-3 w-3" />
                   </button>
                 </Badge>
               )}
-              {aadharVerified !== undefined && (
+
+              {isSuspended !== undefined && (
                 <Badge variant="outline" className="flex items-center gap-1">
-                  Aadhar: {aadharVerified ? 'Verified' : 'Unverified'}
+                  {isSuspended ? 'Suspended' : 'Active'}
                   <button 
-                    onClick={() => setAadharVerified(undefined)}
-                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                    onClick={() => setIsSuspended(undefined)}
                   >
                     <XCircle className="h-3 w-3" />
                   </button>
@@ -360,10 +514,13 @@ const PlayerList = () => {
                 onClick={() => {
                   setIsSuspended(undefined);
                   setAadharVerified(undefined);
+                  setClubId("");
+                  setPage(1);
                 }}
               >
                 Clear all
               </Button>
+
             </div>
           )}
 
@@ -372,6 +529,7 @@ const PlayerList = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  {isAdmin && <TableHead>Club</TableHead>}
                   <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("uniqueIdNumber")}>
                     ID
                     {sortBy === "uniqueIdNumber" && (
@@ -399,20 +557,25 @@ const PlayerList = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
+                    <TableCell colSpan={colCount} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading players...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.players?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
+                    <TableCell colSpan={colCount} className="h-24 text-center">
                       No players found.
                     </TableCell>
                   </TableRow>
                 ) : (
                   data?.players?.map((player: any) => (
                     <TableRow key={player.id} className={player.isSuspended ? "bg-red-50" : ""}>
+                      {isAdmin && (
+                        <TableCell className="whitespace-nowrap">
+                          {player.club?.clubName || "No Club"}
+                        </TableCell>
+                      )}
                       <TableCell className="font-mono text-xs">{player.uniqueIdNumber}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -420,7 +583,7 @@ const PlayerList = () => {
                           <div className="flex-shrink-0">
                             {player.profileImage ? (
                               <img 
-                                src={import.meta.env.DEV ? `/${player.profileImage}` : `${(import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/${player.profileImage}`}
+                                src={resolveUploadUrl(player.profileImage)}
                                 alt={`${player.firstName} ${player.lastName}`}
                                 className="w-8 h-8 rounded-full object-cover border"
                                 onError={(e) => {
