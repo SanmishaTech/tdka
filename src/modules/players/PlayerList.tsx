@@ -67,6 +67,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const PlayerList = () => {
   const [page, setPage] = useState(1);
@@ -79,6 +80,9 @@ const PlayerList = () => {
   const [clubId, setClubId] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
   const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
+  const [isPhotoPreviewOpen, setIsPhotoPreviewOpen] = useState(false);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>("");
+  const [photoPreviewTitle, setPhotoPreviewTitle] = useState<string>("");
 
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
@@ -649,7 +653,12 @@ const PlayerList = () => {
                               <img 
                                 src={resolveUploadUrl(player.profileImage)}
                                 alt={`${player.firstName} ${player.lastName}`}
-                                className="w-8 h-8 rounded-full object-cover border"
+                                className="w-8 h-8 rounded-full object-cover border cursor-pointer transition-transform hover:scale-105"
+                                onClick={() => {
+                                  setPhotoPreviewUrl(resolveUploadUrl(player.profileImage));
+                                  setPhotoPreviewTitle(`${player.firstName} ${player.lastName}`);
+                                  setIsPhotoPreviewOpen(true);
+                                }}
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"%3E%3C/path%3E%3Ccircle cx="12" cy="7" r="4"%3E%3C/circle%3E%3C/svg%3E';
@@ -833,6 +842,23 @@ const PlayerList = () => {
               </TableBody>
             </Table>
           </div>
+
+          <Dialog open={isPhotoPreviewOpen} onOpenChange={setIsPhotoPreviewOpen}>
+            <DialogContent className="p-0 overflow-hidden sm:max-w-2xl">
+              <div className="px-6 pt-6">
+                <DialogTitle>{photoPreviewTitle || "Profile Photo"}</DialogTitle>
+              </div>
+              <div className="bg-black/90">
+                {photoPreviewUrl ? (
+                  <img
+                    src={photoPreviewUrl}
+                    alt={photoPreviewTitle || "Profile Photo"}
+                    className="w-full max-h-[80vh] object-contain"
+                  />
+                ) : null}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Pagination */}
           {data && data.totalPages > 1 && (
