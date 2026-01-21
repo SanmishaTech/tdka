@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -80,6 +80,9 @@ const PlayerList = () => {
   const [clubId, setClubId] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
   const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
+  const exportProgressIntervalRef = useRef<number | null>(null);
+  const exportSawDownloadProgressRef = useRef(false);
   const [isPhotoPreviewOpen, setIsPhotoPreviewOpen] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>("");
   const [photoPreviewTitle, setPhotoPreviewTitle] = useState<string>("");
@@ -311,6 +314,20 @@ const PlayerList = () => {
     if (isExporting) return;
     try {
       setIsExporting(true);
+      setExportProgress(0);
+      exportSawDownloadProgressRef.current = false;
+      if (exportProgressIntervalRef.current) {
+        window.clearInterval(exportProgressIntervalRef.current);
+      }
+      exportProgressIntervalRef.current = window.setInterval(() => {
+        if (exportSawDownloadProgressRef.current) return;
+        setExportProgress((prev) => {
+          const p = typeof prev === "number" ? prev : 0;
+          if (p >= 90) return 90;
+          return p + 1;
+        });
+      }, 150);
+
       const response: any = await get(
         "/players/export/pdf",
         {
@@ -321,9 +338,21 @@ const PlayerList = () => {
           isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
           aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
         },
-        { responseType: "blob" }
+        {
+          responseType: "blob",
+          onDownloadProgress: (evt: ProgressEvent) => {
+            const total = (evt as any)?.total;
+            const loaded = (evt as any)?.loaded;
+            if (typeof total === "number" && total > 0 && typeof loaded === "number") {
+              exportSawDownloadProgressRef.current = true;
+              const pct = Math.max(0, Math.min(99, Math.round((loaded / total) * 100)));
+              setExportProgress(pct);
+            }
+          },
+        }
       );
 
+      setExportProgress(100);
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
 
@@ -338,7 +367,12 @@ const PlayerList = () => {
     } catch (error: any) {
       toast.error(error.errors?.message || error.message || "Failed to export players");
     } finally {
+      if (exportProgressIntervalRef.current) {
+        window.clearInterval(exportProgressIntervalRef.current);
+        exportProgressIntervalRef.current = null;
+      }
       setIsExporting(false);
+      setExportProgress(null);
     }
   };
 
@@ -503,7 +537,7 @@ const PlayerList = () => {
                     ) : (
                       <Download className="mr-2 h-4 w-4" />
                     )}
-                    Export
+                    {isExporting && typeof exportProgress === "number" ? `Export ${exportProgress}%` : "Export"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-56 p-2">
@@ -530,7 +564,7 @@ const PlayerList = () => {
                       }}
                     >
                       <FileText className="mr-2 h-4 w-4" />
-                      PDF
+                      {isExporting && typeof exportProgress === "number" ? `PDF ${exportProgress}%` : "PDF"}
                     </Button>
                   </div>
                 </PopoverContent>
