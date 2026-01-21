@@ -4,6 +4,15 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -22,7 +31,8 @@ import {
   ChevronDown,
   PlusCircle,
   Upload,
-  Download
+  Download,
+  SlidersHorizontal
 } from "lucide-react";
 import {
   AlertDialog,
@@ -55,6 +65,13 @@ const ClubList = () => {
   const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState("clubName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [regionId, setRegionId] = useState<string>("");
+  const [placeId, setPlaceId] = useState<string>("");
+  const [regionDraftId, setRegionDraftId] = useState<string>("");
+  const [placeDraftId, setPlaceDraftId] = useState<string>("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const isFilterActive = regionId !== "" || placeId !== "";
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -68,8 +85,13 @@ const ClubList = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["clubs", page, limit, search, sortBy, sortOrder],
-    queryFn: () => get("/clubs", { page, limit, search, sortBy, sortOrder }),
+    queryKey: ["clubs", page, limit, search, sortBy, sortOrder, regionId, placeId],
+    queryFn: () => get("/clubs", { page, limit, search, sortBy, sortOrder, regionId, placeId }),
+  });
+
+  const { data: regionsResp } = useQuery({
+    queryKey: ["regions"],
+    queryFn: () => get("/regions", { page: 1, limit: 1000, sortBy: "regionName", sortOrder: "asc" }),
   });
 
   // Import clubs mutation
@@ -129,6 +151,30 @@ const ClubList = () => {
     }
   };
 
+  const exportClubs = async () => {
+    try {
+      setIsExporting(true);
+      const res = await get(
+        "/clubs/export",
+        { search, sortBy, sortOrder, regionId, placeId },
+        { responseType: "blob" }
+      );
+      const blob = res.data as Blob;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "TDKA_Clubs_Export.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to export clubs");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // Fetch places for mapping placeId -> placeName
   const { data: placesResp } = useQuery({
     queryKey: ["places"],
@@ -138,6 +184,14 @@ const ClubList = () => {
   const placeNameById = React.useMemo(() => {
     const map = new Map<number, string>();
     placesResp?.places?.forEach((p: any) => map.set(p.id, p.placeName));
+    return map;
+  }, [placesResp]);
+
+  const regionNameByPlaceId = React.useMemo(() => {
+    const map = new Map<number, string>();
+    placesResp?.places?.forEach((p: any) =>
+      map.set(p.id, p?.region?.regionName)
+    );
     return map;
   }, [placesResp]);
 
@@ -157,6 +211,22 @@ const ClubList = () => {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
     setPage(1); // Reset to first page when search changes
+  };
+
+  const applyFilters = () => {
+    setRegionId(regionDraftId);
+    setPlaceId(placeDraftId);
+    setPage(1);
+    setFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setRegionId("");
+    setPlaceId("");
+    setRegionDraftId("");
+    setPlaceDraftId("");
+    setPage(1);
+    setFilterOpen(false);
   };
 
   // Handle sort
@@ -223,14 +293,106 @@ const ClubList = () => {
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-4 mb-4 ">
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[250px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search clubs..."
-                value={search}
-                onChange={handleSearchChange}
-                className="pl-8 w-full"
-              />
+            <div className="flex flex-1 min-w-[250px] items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by club name or affiliation number..."
+                  value={search}
+                  onChange={handleSearchChange}
+                  className="pl-8 w-full"
+                />
+              </div>
+
+              <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={isFilterActive ? "border-emerald-600 text-emerald-600" : undefined}
+                    onClick={() => {
+                      setRegionDraftId(regionId);
+                      setPlaceDraftId(placeId);
+                    }}
+                  >
+                    <SlidersHorizontal className="mr-2 h-4 w-4" />
+                    Filter
+                    {isFilterActive && (
+                      <span
+                        className="ml-2 inline-block h-2 w-2 rounded-full bg-emerald-600"
+                        aria-label="Filter active"
+                      />
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-80">
+                  <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label>Region</Label>
+                      <Select
+                        value={regionDraftId === "" ? "all" : regionDraftId}
+                        onValueChange={(v) => {
+                          const nextRegion = v === "all" ? "" : v;
+                          setRegionDraftId(nextRegion);
+                          setPlaceDraftId("");
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Regions</SelectItem>
+                          {(regionsResp?.regions ?? []).map((r: any) => (
+                            <SelectItem key={r.id} value={String(r.id)}>
+                              {r.regionName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Place</Label>
+                      <Select
+                        disabled={regionDraftId === ""}
+                        value={placeDraftId === "" ? "all" : placeDraftId}
+                        onValueChange={(v) => setPlaceDraftId(v === "all" ? "" : v)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue
+                            placeholder={
+                              regionDraftId === "" ? "Select region first" : "Select place"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regionDraftId !== "" && <SelectItem value="all">All Places</SelectItem>}
+                          {(regionDraftId === ""
+                            ? []
+                            : (placesResp?.places ?? []).filter(
+                                (p: any) => String(p?.region?.id) === regionDraftId
+                              )
+                          ).map((p: any) => (
+                            <SelectItem key={p.id} value={String(p.id)}>
+                              {p.placeName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={clearFilters}>
+                        Clear
+                      </Button>
+                      <Button type="button" size="sm" onClick={applyFilters}>
+                        Apply
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Action Buttons */}
@@ -249,6 +411,17 @@ const ClubList = () => {
               <>
                 <Upload className="mr-2 h-4 w-4" />
                 Import Excel
+              </>
+            </Button>
+            <Button
+              onClick={exportClubs}
+              size="sm"
+              variant="secondary"
+              disabled={isExporting}
+            >
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                {isExporting ? "Exporting..." : "Export Excel"}
               </>
             </Button>
           </div>
@@ -270,6 +443,7 @@ const ClubList = () => {
                       </span>
                     )}
                   </TableHead>
+                  <TableHead>Region</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -277,14 +451,14 @@ const ClubList = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading clubs...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.clubs?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       No clubs found.
                     </TableCell>
                   </TableRow>
@@ -294,6 +468,7 @@ const ClubList = () => {
                       <TableCell>{club.uniqueNumber || '-'}</TableCell>
                       <TableCell>{club.clubName}</TableCell>
                       <TableCell>{placeNameById.get(club.placeId) || '-'}</TableCell>
+                      <TableCell>{regionNameByPlaceId.get(club.placeId) || '-'}</TableCell>
                       <TableCell>{club.email}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
