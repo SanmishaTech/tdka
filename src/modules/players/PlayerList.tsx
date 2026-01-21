@@ -66,6 +66,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const PlayerList = () => {
   const [page, setPage] = useState(1);
@@ -77,6 +78,7 @@ const PlayerList = () => {
   const [aadharVerified, setAadharVerified] = useState<boolean | undefined>(undefined);
   const [clubId, setClubId] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
 
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
@@ -264,7 +266,7 @@ const PlayerList = () => {
     );
   }
 
-  const handleExport = async () => {
+  const handleExportExcel = async () => {
     if (isExporting) return;
     try {
       setIsExporting(true);
@@ -289,6 +291,41 @@ const PlayerList = () => {
       const a = document.createElement("a");
       a.href = url;
       a.download = "TDKA_Players_Export.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Export downloaded");
+    } catch (error: any) {
+      toast.error(error.errors?.message || error.message || "Failed to export players");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (isExporting) return;
+    try {
+      setIsExporting(true);
+      const response: any = await get(
+        "/players/export/pdf",
+        {
+          search,
+          sortBy,
+          sortOrder,
+          clubId: isAdmin && clubId ? clubId : undefined,
+          isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
+          aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
+        },
+        { responseType: "blob" }
+      );
+
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "TDKA_Players_Export.pdf";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -454,19 +491,46 @@ const PlayerList = () => {
 
             {/* Export Button */}
             {isAdmin && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                disabled={isExporting}
-              >
-                {isExporting ? (
-                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                Export
-              </Button>
+              <Popover open={isExportPopoverOpen} onOpenChange={setIsExportPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={isExporting}>
+                    {isExporting ? (
+                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Export
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56 p-2">
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isExporting}
+                      onClick={async () => {
+                        setIsExportPopoverOpen(false);
+                        await handleExportExcel();
+                      }}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Excel
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isExporting}
+                      onClick={async () => {
+                        setIsExportPopoverOpen(false);
+                        await handleExportPdf();
+                      }}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      PDF
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
 
             {/* Add Button */}
