@@ -248,7 +248,12 @@ const PlayerForm = ({
         }
       }
     } catch (error: any) {
-      toast.error(error?.message || "Verification failed");
+      const providerMessage =
+        error?.data?.cashfreeResponse?.message ||
+        error?.data?.cashfreeResponse?.error ||
+        error?.data?.cashfreeResponse?.code ||
+        error?.data?.mismatchReasons?.[0];
+      toast.error(providerMessage || error?.message || "Verification failed");
     } finally {
       setIsVerifying(false);
     }
