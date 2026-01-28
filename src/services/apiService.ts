@@ -24,6 +24,10 @@ const extractErrorMessage = (error: any): string => {
   const message = (
     error.response?.data?.message ||
     error.response?.data?.error?.message ||
+    error.response?.data?.cashfreeResponse?.message ||
+    error.response?.data?.cashfreeResponse?.error ||
+    error.response?.data?.cashfreeResponse?.code ||
+    error.response?.data?.mismatchReasons?.[0] ||
     error.response?.data?.errors?.message ||
     error.response?.data?.errors?.[0]?.message ||
     error.message ||

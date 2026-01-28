@@ -248,12 +248,27 @@ const PlayerForm = ({
         }
       }
     } catch (error: any) {
+      const rawData = error?.originalError?.response?.data;
       const providerMessage =
         error?.data?.cashfreeResponse?.message ||
         error?.data?.cashfreeResponse?.error ||
         error?.data?.cashfreeResponse?.code ||
-        error?.data?.mismatchReasons?.[0];
-      toast.error(providerMessage || error?.message || "Verification failed");
+        error?.data?.mismatchReasons?.[0] ||
+        rawData?.cashfreeResponse?.message ||
+        rawData?.cashfreeResponse?.error ||
+        rawData?.cashfreeResponse?.code ||
+        rawData?.mismatchReasons?.[0];
+      const providerCode = String(
+        error?.data?.cashfreeResponse?.code || rawData?.cashfreeResponse?.code || ""
+      ).toLowerCase();
+      const isInsufficientBalance =
+        providerCode === "insufficient_balance" ||
+        String(providerMessage || "").toLowerCase().includes("insufficient balance");
+      toast.error(
+        (isInsufficientBalance ? (providerMessage || "Insufficient balance to process this request.") : providerMessage) ||
+          error?.message ||
+          "Verification failed"
+      );
     } finally {
       setIsVerifying(false);
     }
