@@ -297,10 +297,11 @@ const ClubList = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by club name or affiliation number..."
+                  type="text"
                   value={search}
                   onChange={handleSearchChange}
-                  className="pl-8 w-full"
+                  placeholder="Search by club name or club email..."
+                  className="pl-10"
                 />
               </div>
 
