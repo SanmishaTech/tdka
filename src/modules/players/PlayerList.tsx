@@ -78,6 +78,7 @@ const PlayerList = () => {
   const [isSuspended, setIsSuspended] = useState<boolean | undefined>(undefined);
   const [aadharVerified, setAadharVerified] = useState<boolean | undefined>(undefined);
   const [clubId, setClubId] = useState<string>("");
+  const [groupId, setGroupId] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
   const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
@@ -107,7 +108,8 @@ const PlayerList = () => {
   const activeFilterCount =
     (isSuspended !== undefined ? 1 : 0) +
     (aadharVerified !== undefined ? 1 : 0) +
-    (isAdmin && clubId ? 1 : 0);
+    (isAdmin && clubId ? 1 : 0) +
+    (groupId ? 1 : 0);
 
   // Fetch players
   const {
@@ -116,7 +118,7 @@ const PlayerList = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["players", page, limit, search, sortBy, sortOrder, isSuspended, aadharVerified, clubId, isAdmin],
+    queryKey: ["players", page, limit, search, sortBy, sortOrder, isSuspended, aadharVerified, clubId, groupId, isAdmin],
     queryFn: () =>
       get("/players", {
         page,
@@ -125,6 +127,7 @@ const PlayerList = () => {
         sortBy,
         sortOrder,
         clubId: isAdmin && clubId ? clubId : undefined,
+        groupId: groupId ? groupId : undefined,
         isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
         aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
       }),
@@ -142,6 +145,20 @@ const PlayerList = () => {
       return response.clubs || response;
     },
     enabled: isAdmin,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: groupsData, isLoading: isLoadingGroups } = useQuery({
+    queryKey: ["groups", "all"],
+    queryFn: async () => {
+      const response = await get("/groups", {
+        page: 1,
+        limit: 5000,
+        sortBy: "groupName",
+        sortOrder: "asc",
+      });
+      return response.groups || response;
+    },
     refetchOnWindowFocus: false,
   });
 
@@ -215,6 +232,7 @@ const PlayerList = () => {
       setIsSuspended(undefined);
       setAadharVerified(undefined);
       setClubId("");
+      setGroupId("");
     }
     setPage(1); // Reset to first page when filters change
   };
@@ -284,6 +302,7 @@ const PlayerList = () => {
           sortBy,
           sortOrder,
           clubId: isAdmin && clubId ? clubId : undefined,
+          groupId: groupId ? groupId : undefined,
           isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
           aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
         },
@@ -335,6 +354,7 @@ const PlayerList = () => {
           sortBy,
           sortOrder,
           clubId: isAdmin && clubId ? clubId : undefined,
+          groupId: groupId ? groupId : undefined,
           isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
           aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
         },
@@ -417,7 +437,7 @@ const PlayerList = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => handleFilterChange('all')} className="flex items-center justify-between">
                   <span>All Players</span>
-                  {isSuspended === undefined && aadharVerified === undefined && (!isAdmin || !clubId) && (
+                  {isSuspended === undefined && aadharVerified === undefined && (!isAdmin || !clubId) && !groupId && (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   )}
                 </DropdownMenuItem>
@@ -484,6 +504,60 @@ const PlayerList = () => {
                     </DropdownMenuSub>
                   </>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Group</DropdownMenuLabel>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <span className="truncate">
+                      {groupId
+                        ? (groupsData || []).find((g: any) => String(g.id) === String(groupId))?.groupName || "Selected group"
+                        : "All Groups"}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="p-0 w-89">
+                    <Command className="w-89">
+                      <CommandInput placeholder={isLoadingGroups ? "Loading groups..." : "Search group..."} />
+                      <CommandList className="max-h-[260px]">
+                        <CommandEmpty>No group found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="All Groups"
+                            onSelect={() => {
+                              setGroupId("");
+                              setPage(1);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", !groupId ? "opacity-100" : "opacity-0")} />
+                            All Groups
+                          </CommandItem>
+                          {(groupsData || []).map((group: any) => (
+                            <CommandItem
+                              key={group.id}
+                              value={`${group.groupName} ${group.gender || ""} ${group.age || ""}`.trim()}
+                              onSelect={() => {
+                                setGroupId(String(group.id));
+                                setPage(1);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  String(group.id) === String(groupId) ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="flex-1 truncate">{group.groupName}</span>
+                              {[group.gender, group.age].filter(Boolean).length ? (
+                                <span className="ml-2 text-xs text-muted-foreground truncate">
+                                  {[group.gender, group.age].filter(Boolean).join(" • ")}
+                                </span>
+                              ) : null}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => handleFilterChange('active')} className="flex items-center justify-between">
@@ -581,7 +655,7 @@ const PlayerList = () => {
             </Button>
           </div>
           {/* Active Filters Display */}
-          {(isSuspended !== undefined || aadharVerified !== undefined || (isAdmin && clubId)) && (
+          {(isSuspended !== undefined || aadharVerified !== undefined || (isAdmin && clubId) || groupId) && (
             <div className="flex flex-wrap gap-2 mb-4">
               <div className="text-sm text-muted-foreground">Active filters:</div>
               {isAdmin && clubId && (
@@ -590,6 +664,21 @@ const PlayerList = () => {
                   <button
                     onClick={() => {
                       setClubId("");
+                      setPage(1);
+                    }}
+                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                  >
+                    <XCircle className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+
+              {groupId && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  Group: {(groupsData || []).find((g: any) => String(g.id) === String(groupId))?.groupName || groupId}
+                  <button
+                    onClick={() => {
+                      setGroupId("");
                       setPage(1);
                     }}
                     className="ml-1 rounded-full hover:bg-muted p-0.5"
@@ -617,6 +706,7 @@ const PlayerList = () => {
                   setIsSuspended(undefined);
                   setAadharVerified(undefined);
                   setClubId("");
+                  setGroupId("");
                   setPage(1);
                 }}
               >
