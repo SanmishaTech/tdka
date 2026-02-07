@@ -415,6 +415,7 @@ const PlayerForm = ({
         setExistingAadharImage(imageUrl);
         setAadharImagePreview(imageUrl);
       }
+      setAadharVerified(!!playerData.aadharVerified);
     }
   }, [playerData, mode, form]);
 
@@ -1081,13 +1082,15 @@ const PlayerForm = ({
                     <FormLabel>
                       Aadhar Number
                       {mode === "create" && <span className="text-red-500">*</span>}
-                      {mode === "edit" && <span className="text-sm text-muted-foreground ml-2">(Cannot be changed)</span>}
+                      {mode === "edit" && aadharVerified && (
+                        <span className="text-sm text-muted-foreground ml-2">(Locked after verification)</span>
+                      )}
                     </FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Enter 12-digit Aadhar number"
                         {...field}
-                        disabled={isFormLoading || mode === "edit"}
+                        disabled={isFormLoading || (mode === "edit" && aadharVerified)}
                         maxLength={12}
                       />
                     </FormControl>
@@ -1104,7 +1107,7 @@ const PlayerForm = ({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isFormLoading || isVerifying}
+                  disabled={isFormLoading || isVerifying || aadharVerified}
                   onClick={handleVerifyAadhar}
                   className="flex items-center gap-2"
                 >

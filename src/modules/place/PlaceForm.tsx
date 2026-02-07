@@ -23,7 +23,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 
 // Services and utilities
@@ -163,14 +162,15 @@ const PlaceForm = ({
     console.log("Place data received:", placeData); // Debug log
     if (placeData && mode === "edit") {
       console.log("Setting form values..."); // Debug log
-      if (placeData.number !== undefined && placeData.number !== null) {
-        form.setValue("number", placeData.number);
-      }
-      form.setValue("abbreviation", placeData.abbreviation || "");
-      form.setValue("placeName", placeData.placeName || "");
-      if (placeData.regionId !== undefined && placeData.regionId !== null) {
-        form.setValue("regionId", placeData.regionId);
-      }
+      form.reset({
+        number: placeData.number ?? undefined,
+        abbreviation: placeData.abbreviation || "",
+        placeName: placeData.placeName || "",
+        regionId:
+          placeData.regionId !== undefined && placeData.regionId !== null
+            ? Number(placeData.regionId)
+            : undefined,
+      });
     }
   }, [placeData, mode, form]);
 
@@ -328,36 +328,63 @@ const PlaceForm = ({
           <FormField
             control={form.control}
             name="regionId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Region *</FormLabel>
-                <Select
-                  onValueChange={(value) => field.onChange(Number(value))}
-                  value={field.value ? String(field.value) : ""}
-                  disabled={isLoadingRegions}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoadingRegions ? "Loading regions..." : "Select a region"} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {regions?.map((region) => (
-                      <SelectItem key={region.id} value={String(region.id)}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                            {String(region.number).padStart(2, '0')}
+            render={({ field }) => {
+              const effectiveId = field.value ?? placeData?.regionId;
+              const idNum = Number(effectiveId);
+              const r = Number.isFinite(idNum) && idNum > 0
+                ? regions?.find((x) => x.id === idNum)
+                : undefined;
+              const fallbackRegion = placeData?.region;
+              const label = r
+                ? `${String(r.number).padStart(2, "0")} ${r.regionName} (${r.abbreviation})`
+                : fallbackRegion
+                  ? `${String(fallbackRegion.number).padStart(2, "0")} ${fallbackRegion.regionName} (${fallbackRegion.abbreviation})`
+                  : "";
+              const selectValue = effectiveId !== undefined && effectiveId !== null && effectiveId !== ""
+                ? String(effectiveId)
+                : "";
+
+              return (
+                <FormItem>
+                  <FormLabel>Region *</FormLabel>
+                  <Select
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    value={selectValue}
+                    disabled={isLoadingRegions}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        {label ? (
+                          <span>{label}</span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {isLoadingRegions ? "Loading regions..." : "Select a region"}
                           </span>
-                          <span>{region.regionName}</span>
-                          <span className="text-muted-foreground text-sm">({region.abbreviation})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+                        )}
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="z-[100]">
+                      {regions?.map((region) => (
+                        <SelectItem
+                          key={region.id}
+                          value={String(region.id)}
+                          textValue={`${String(region.number).padStart(2, "0")} ${region.regionName} (${region.abbreviation})`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                              {String(region.number).padStart(2, "0")}
+                            </span>
+                            <span>{region.regionName}</span>
+                            <span className="text-muted-foreground text-sm">({region.abbreviation})</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
 
           {/* Action Buttons */}

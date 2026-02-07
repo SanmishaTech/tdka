@@ -35,6 +35,7 @@ import ClubCompetitionDetails from "@/modules/clubcompetition/ClubCompetitionDet
 import { PlayerList } from "@/modules/players";
 import CreatePlayer from "./modules/players/CreatePlayer";
 import EditPlayer from "./modules/players/EditPlayer";
+import ActivityLogList from "@/modules/activitylog/ActivityLogList";
 import Profile from "./modules/profile/EditAgency";
 import RoleBasedDashboard from "@/modules/Dashboard/RoleBasedDashboard";
 import Registerformat from "./modules/Register/register";
@@ -263,6 +264,15 @@ const App = () => {
               element={
                 <ProtectedRoute roles={['admin', 'clubadmin']}>
                   <EditPlayer />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/activity-logs"
+              element={
+                <ProtectedRoute roles={['admin']}>
+                  <ActivityLogList />
                 </ProtectedRoute>
               }
             />

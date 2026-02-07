@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Trophy,
   UserCheck,
+  ClipboardList,
 } from "lucide-react";
 import { NavProjects } from "@/components/common/nav-projects";
 import { NavUser } from "@/components/common/nav-user";
@@ -74,6 +75,12 @@ const initialData = {
           name: "Competition",
           url: "/competitions",
           icon: Trophy,
+        },
+
+        {
+          name: "Activity Logs",
+          url: "/activity-logs",
+          icon: ClipboardList,
         },
       
       ],
