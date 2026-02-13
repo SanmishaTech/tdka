@@ -28,9 +28,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { LoaderCircle, ArrowLeft, Calendar, Users, UserPlus, Plus, X, CheckCircle2 } from "lucide-react";
+import { LoaderCircle, ArrowLeft, Calendar, Users, UserPlus, Plus, X, CheckCircle2, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { get, post, del } from "@/services/apiService";
+import { get, post, del, put } from "@/services/apiService";
+import { Input } from "@/components/ui/input";
 
 const ClubCompetitionDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +39,13 @@ const ClubCompetitionDetails = () => {
   const queryClient = useQueryClient();
   const [showAddPlayers, setShowAddPlayers] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<number[]>([]);
+  const [managerName, setManagerName] = useState("");
+  const [coachName, setCoachName] = useState("");
+
+  // Get clubId from localStorage
+  const userStr = localStorage.getItem("user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const clubId = user?.clubId;
 
   // Fetch competition details
   const {
@@ -87,6 +95,29 @@ const ClubCompetitionDetails = () => {
     },
   });
 
+  // Set captain mutation
+  const setCaptainMutation = useMutation({
+    mutationFn: (registrationId: number) => {
+      // Get clubId from localStorage user (for clubadmin/CLUB users)
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const clubId = user?.clubId;
+      
+      if (!clubId) {
+        throw new Error("Club ID not found. Please log in again.");
+      }
+      
+      return put(`/competitions/${id}/clubs/${clubId}/players/${registrationId}/captain`, {});
+    },
+    onSuccess: () => {
+      toast.success("Captain set successfully");
+      queryClient.invalidateQueries({ queryKey: ["registeredplayers", id] });
+    },
+    onError: (error: any) => {
+      toast.error(error.errors?.message || error.message || "Failed to set captain");
+    },
+  });
+
   // Remove player from competition mutation
   const removePlayerMutation = useMutation({
     mutationFn: (playerId: number) =>
@@ -100,7 +131,36 @@ const ClubCompetitionDetails = () => {
     },
   });
 
-  // Effect to populate selected players with already registered players when dialog opens
+  // Fetch club info (manager and coach names)
+  const {
+    data: clubInfo,
+    isLoading: isLoadingClubInfo,
+  } = useQuery({
+    queryKey: ["clubcompetition-info", id, clubId],
+    queryFn: () => get(`/competitions/${id}/clubs/${clubId}/info`),
+    enabled: !!id && !!clubId,
+  });
+
+  // Update club info mutation
+  const updateClubInfoMutation = useMutation({
+    mutationFn: (data: { managerName: string; coachName: string }) =>
+      put(`/competitions/${id}/clubs/${clubId}/info`, data),
+    onSuccess: () => {
+      toast.success("Manager and coach information saved successfully");
+      queryClient.invalidateQueries({ queryKey: ["clubcompetition-info", id, clubId] });
+    },
+    onError: (error: any) => {
+      toast.error(error.errors?.message || error.message || "Failed to save manager and coach information");
+    },
+  });
+
+  // Effect to populate manager and coach names when data is fetched
+  useEffect(() => {
+    if (clubInfo) {
+      setManagerName(clubInfo.managerName || "");
+      setCoachName(clubInfo.coachName || "");
+    }
+  }, [clubInfo]);
   useEffect(() => {
     if (showAddPlayers && registeredPlayers?.registrations && eligiblePlayers?.players) {
       // Extract player IDs from registered players that are also in eligible players
@@ -686,6 +746,60 @@ const ClubCompetitionDetails = () => {
         </Card>
       )}
 
+      {/* Club Info Card - Manager and Coach */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Club Information</CardTitle>
+          <CardDescription>
+            Manager and Coach details for this competition
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingClubInfo ? (
+            <div className="flex justify-center py-4">
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+              <span className="ml-2 text-sm">Loading...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Manager Name</label>
+                <Input
+                  placeholder="Enter manager name"
+                  value={managerName}
+                  onChange={(e) => setManagerName(e.target.value)}
+                  disabled={updateClubInfoMutation.isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Coach Name</label>
+                <Input
+                  placeholder="Enter coach name"
+                  value={coachName}
+                  onChange={(e) => setCoachName(e.target.value)}
+                  disabled={updateClubInfoMutation.isPending}
+                />
+              </div>
+            </div>
+          )}
+          <div className="mt-4 flex justify-end">
+            <Button
+              onClick={() => updateClubInfoMutation.mutate({ managerName, coachName })}
+              disabled={updateClubInfoMutation.isPending || isLoadingClubInfo}
+            >
+              {updateClubInfoMutation.isPending ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                "Save Club Info"
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Registered Players from Your Club */}
       <Card>
         <CardHeader>
@@ -715,6 +829,7 @@ const ClubCompetitionDetails = () => {
                     <TableHead>Age</TableHead>
                     <TableHead>Registration Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Captain</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -741,6 +856,28 @@ const ClubCompetitionDetails = () => {
                         >
                           {registration.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {registration.captain ? (
+                          <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">
+                            <Crown className="h-3 w-3 mr-1" />
+                            Captain
+                          </Badge>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCaptainMutation.mutate(registration.id)}
+                            disabled={setCaptainMutation.isPending}
+                          >
+                            {setCaptainMutation.isPending ? (
+                              <LoaderCircle className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Crown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            Set Captain
+                          </Button>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {isCompetitionOver ? (

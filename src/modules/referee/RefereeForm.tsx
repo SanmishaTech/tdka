@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Form,
   FormControl,
@@ -480,7 +481,7 @@ const RefereeForm = ({ mode, refereeId, onSuccess, className }: RefereeFormProps
                     Password {mode === "create" && <span className="text-red-500">*</span>}
                   </FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder={mode === "create" ? "Enter password" : "New password (optional)"} {...field} disabled={isFormLoading} />
+                    <PasswordInput placeholder={mode === "create" ? "Enter password" : "New password (optional)"} {...field} disabled={isFormLoading} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -4,10 +4,10 @@ import * as React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input, InputProps } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-const PasswordInput = React.forwardRef<HTMLInputElement, InputProps>(
+const PasswordInput = React.forwardRef<HTMLInputElement, React.ComponentPropsWithoutRef<'input'>>(
   ({ className, onChange, onBlur, ...props }, ref) => {
     const [showPassword, setShowPassword] = React.useState(false);
 
@@ -29,7 +29,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, InputProps>(
           type="button"
           variant="ghost"
           size="sm"
-          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent z-10"
           onClick={() => {
             setShowPassword((prev) => !prev); // Toggle the state
           }}
@@ -49,6 +49,14 @@ const PasswordInput = React.forwardRef<HTMLInputElement, InputProps>(
             visibility: hidden;
             pointer-events: none;
             display: none;
+          }
+
+          .hide-password-toggle::-webkit-credentials-auto-fill-button,
+          .hide-password-toggle::-webkit-clear-button,
+          .hide-password-toggle::-webkit-search-cancel-button {
+            visibility: hidden;
+            display: none;
+            pointer-events: none;
           }
         `}</style>
       </div>

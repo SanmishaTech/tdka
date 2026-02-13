@@ -10,6 +10,8 @@ import { LoaderCircle, ArrowLeft } from "lucide-react";
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
@@ -662,10 +664,11 @@ const ClubForm = ({
               <FormItem>
                 <FormLabel>Address</FormLabel>
                 <FormControl>
-                  <Input
+                  <Textarea
                     placeholder="Enter address"
                     {...field}
                     disabled={isFormLoading}
+                    className="min-h-[80px]"
                   />
                 </FormControl>
                 <FormMessage />
@@ -729,11 +732,10 @@ const ClubForm = ({
                   {mode === "edit" && <span className="text-sm text-muted-foreground ml-2">(Leave blank to keep current password)</span>}
                 </FormLabel>
                 <FormControl>
-                  <Input
+                  <PasswordInput
                     placeholder={mode === "create" ? "Enter password" : "Leave blank to keep current password"}
                     {...field}
                     disabled={isFormLoading}
-                    type="password"
                   />
                 </FormControl>
                 <FormMessage />

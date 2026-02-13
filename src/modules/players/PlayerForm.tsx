@@ -48,6 +48,7 @@ interface PlayerData {
   profileImage?: string;
   dateOfBirth: string;
   position?: string;
+  chestNumber?: string;
   address: string;
   mobile: string;
   aadharNumber: string;
@@ -110,6 +111,9 @@ const playerFormSchemaBase = z.object({
     .min(1, "Date of birth is required"),
   position: z.string()
     .max(100, "Position must not exceed 100 characters")
+    .optional(),
+  chestNumber: z.string()
+    .max(20, "Chest number must not exceed 20 characters")
     .optional(),
   address: z.string()
     .min(1, "Address is required"),
@@ -209,70 +213,11 @@ const PlayerForm = ({
 
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [clubPopoverOpen, setClubPopoverOpen] = useState(false);
+  const [shouldRemoveImage, setShouldRemoveImage] = useState<boolean>(false);
+  const [shouldRemoveAadharImage, setShouldRemoveAadharImage] = useState<boolean>(false);
 
-  // Handle Aadhaar verification
-  const handleVerifyAadhar = async () => {
-    if (isFormLoading || isVerifying) return;
-    const aadharNumber = form.getValues("aadharNumber") as string;
-    if (!aadharNumber || aadharNumber.length !== 12) {
-      toast.error("Enter valid 12-digit Aadhaar number first");
-      return;
-    }
-    try {
-      setIsVerifying(true);
-      form.clearErrors(["aadharNumber"]);
-      const formData = new FormData();
-      formData.append("aadharNumber", aadharNumber);
-      if (aadharImageFile) {
-        formData.append("file", aadharImageFile);
-      }
-      const url = mode === "edit" && playerId ? `/players/${playerId}/verify-aadhar` : "/players/verify-aadhar";
-      const resp: any = await verifyAadhar(url, formData);
-      const verified = resp?.aadharVerified === true || resp?.aadharVerified === "true";
-      setAadharVerified(verified);
-      if (verified) {
-        toast.success("Aadhaar verified and matched successfully");
-        // clear possible previous errors
-        form.clearErrors(["aadharNumber", "firstName","lastName","dateOfBirth"]);
-      } else {
-        // Set validation errors beside the fields
-        if (resp?.mismatchReasons?.includes("Aadhar number does not match")) {
-          form.setError("aadharNumber", { type: "manual", message: "Aadhaar number does not match image" });
-        }
-        if (resp?.mismatchReasons?.includes("Name does not match")) {
-          form.setError("firstName", { type: "manual", message: "Name does not match Aadhaar" });
-          form.setError("lastName", { type: "manual", message: "Name does not match Aadhaar" });
-        }
-        if (resp?.mismatchReasons?.includes("Date of birth does not match")) {
-          form.setError("dateOfBirth", { type: "manual", message: "DOB does not match Aadhaar" });
-        }
-      }
-    } catch (error: any) {
-      const rawData = error?.originalError?.response?.data;
-      const providerMessage =
-        error?.data?.cashfreeResponse?.message ||
-        error?.data?.cashfreeResponse?.error ||
-        error?.data?.cashfreeResponse?.code ||
-        error?.data?.mismatchReasons?.[0] ||
-        rawData?.cashfreeResponse?.message ||
-        rawData?.cashfreeResponse?.error ||
-        rawData?.cashfreeResponse?.code ||
-        rawData?.mismatchReasons?.[0];
-      const providerCode = String(
-        error?.data?.cashfreeResponse?.code || rawData?.cashfreeResponse?.code || ""
-      ).toLowerCase();
-      const isInsufficientBalance =
-        providerCode === "insufficient_balance" ||
-        String(providerMessage || "").toLowerCase().includes("insufficient balance");
-      toast.error(
-        (isInsufficientBalance ? (providerMessage || "Insufficient balance to process this request.") : providerMessage) ||
-          error?.message ||
-          "Verification failed"
-      );
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+  // Combined loading state
+  const [isFormLoadingState, setIsFormLoadingState] = useState(false);
 
   // Initialize form with Shadcn Form
   const form = useForm<PlayerFormInputs>({
@@ -288,6 +233,7 @@ const PlayerForm = ({
       motherName: "",
       dateOfBirth: "",
       position: "",
+      chestNumber: "",
       address: "",
       mobile: "",
       aadharNumber: "",
@@ -388,6 +334,7 @@ const PlayerForm = ({
       form.setValue("motherName", playerData.motherName || "");
       form.setValue("dateOfBirth", playerData.dateOfBirth.split('T')[0] || "");
       form.setValue("position", playerData.position || "");
+      form.setValue("chestNumber", playerData.chestNumber || "");
       form.setValue("address", playerData.address || "");
       form.setValue("mobile", playerData.mobile || "");
       form.setValue("aadharNumber", playerData.aadharNumber || "");
@@ -417,7 +364,7 @@ const PlayerForm = ({
       }
       setAadharVerified(!!playerData.aadharVerified);
     }
-  }, [playerData, mode, form]);
+  }, [playerData, mode, form, isAdmin]);
 
   // Handle fetch error
   useEffect(() => {
@@ -431,11 +378,72 @@ const PlayerForm = ({
     }
   }, [fetchError, mode, onSuccess, navigate]);
 
+  // Handle Aadhaar verification
+  const handleVerifyAadhar = async () => {
+    if (isFormLoading || isVerifying) return;
+    const aadharNumber = form.getValues("aadharNumber") as string;
+    if (!aadharNumber || aadharNumber.length !== 12) {
+      toast.error("Enter valid 12-digit Aadhaar number first");
+      return;
+    }
+    try {
+      setIsVerifying(true);
+      form.clearErrors(["aadharNumber"]);
+      const formData = new FormData();
+      formData.append("aadharNumber", aadharNumber);
+      if (aadharImageFile) {
+        formData.append("file", aadharImageFile);
+      }
+      const url = mode === "edit" && playerId ? `/players/${playerId}/verify-aadhar` : "/players/verify-aadhar";
+      const resp: any = await verifyAadhar(url, formData);
+      const verified = resp?.aadharVerified === true || resp?.aadharVerified === "true";
+      setAadharVerified(verified);
+      if (verified) {
+        toast.success("Aadhaar verified and matched successfully");
+        form.clearErrors(["aadharNumber", "firstName","lastName","dateOfBirth"]);
+      } else {
+        if (resp?.mismatchReasons?.includes("Aadhar number does not match")) {
+          form.setError("aadharNumber", { type: "manual", message: "Aadhaar number does not match image" });
+        }
+        if (resp?.mismatchReasons?.includes("Name does not match")) {
+          form.setError("firstName", { type: "manual", message: "Name does not match Aadhaar" });
+          form.setError("lastName", { type: "manual", message: "Name does not match Aadhaar" });
+        }
+        if (resp?.mismatchReasons?.includes("Date of birth does not match")) {
+          form.setError("dateOfBirth", { type: "manual", message: "DOB does not match Aadhaar" });
+        }
+      }
+    } catch (error: any) {
+      const rawData = error?.originalError?.response?.data;
+      const providerMessage =
+        error?.data?.cashfreeResponse?.message ||
+        error?.data?.cashfreeResponse?.error ||
+        error?.data?.cashfreeResponse?.code ||
+        error?.data?.mismatchReasons?.[0] ||
+        rawData?.cashfreeResponse?.message ||
+        rawData?.cashfreeResponse?.error ||
+        rawData?.cashfreeResponse?.code ||
+        rawData?.mismatchReasons?.[0];
+      const providerCode = String(
+        error?.data?.cashfreeResponse?.code || rawData?.cashfreeResponse?.code || ""
+      ).toLowerCase();
+      const isInsufficientBalance =
+        providerCode === "insufficient_balance" ||
+        String(providerMessage || "").toLowerCase().includes("insufficient balance");
+      toast.error(
+        (isInsufficientBalance ? (providerMessage || "Insufficient balance to process this request.") : providerMessage) ||
+          error?.message ||
+          "Verification failed"
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   // Mutation for creating a player
   const createPlayerMutation = useMutation({
     mutationFn: async (data: PlayerFormInputs) => {
       if (profileImageFile || aadharImageFile) {
-        // If there's a profile or Aadhar image file, use FormData to upload
         const formData = new FormData();
         formData.append('firstName', data.firstName);
         formData.append('middleName', data.middleName || '');
@@ -443,6 +451,7 @@ const PlayerForm = ({
         formData.append('motherName', data.motherName || '');
         formData.append('dateOfBirth', data.dateOfBirth);
         formData.append('position', data.position || '');
+        formData.append('chestNumber', data.chestNumber || '');
         formData.append('address', data.address);
         formData.append('mobile', data.mobile);
         formData.append('aadharNumber', data.aadharNumber!);
@@ -453,7 +462,6 @@ const PlayerForm = ({
         
         return postupload("/players", formData);
       } else {
-        // No profile image, use regular JSON payload
         const payload = {
           firstName: data.firstName,
           middleName: data.middleName || null,
@@ -461,6 +469,7 @@ const PlayerForm = ({
           motherName: data.motherName || null,
           dateOfBirth: data.dateOfBirth,
           position: data.position || null,
+          chestNumber: data.chestNumber || null,
           address: data.address,
           mobile: data.mobile,
           aadharNumber: data.aadharNumber,
@@ -499,7 +508,6 @@ const PlayerForm = ({
   const updatePlayerMutation = useMutation({
     mutationFn: async (data: PlayerFormInputs) => {
       if (profileImageFile || aadharImageFile) {
-        // If there's a new profile image file or aadhar image file, use FormData
         const formData = new FormData();
         formData.append('firstName', data.firstName);
         formData.append('middleName', data.middleName || '');
@@ -507,6 +515,7 @@ const PlayerForm = ({
         formData.append('motherName', data.motherName || '');
         formData.append('dateOfBirth', data.dateOfBirth);
         formData.append('position', data.position || '');
+        formData.append('chestNumber', data.chestNumber || '');
         formData.append('address', data.address);
         formData.append('mobile', data.mobile);
         formData.append('aadharNumber', data.aadharNumber || '');
@@ -522,7 +531,6 @@ const PlayerForm = ({
         
         return putupload(`/players/${playerId}`, formData);
       } else {
-        // No image changes, use regular JSON payload
         const payload = {
           firstName: data.firstName,
           middleName: data.middleName || null,
@@ -530,6 +538,7 @@ const PlayerForm = ({
           motherName: data.motherName || null,
           dateOfBirth: data.dateOfBirth,
           position: data.position || null,
+          chestNumber: data.chestNumber || null,
           address: data.address,
           mobile: data.mobile,
           aadharNumber: data.aadharNumber || null,
@@ -565,17 +574,12 @@ const PlayerForm = ({
     },
   });
 
-  // Track if image should be removed
-  const [shouldRemoveImage, setShouldRemoveImage] = useState<boolean>(false);
-  // Track if Aadhar image should be removed
-  const [shouldRemoveAadharImage, setShouldRemoveAadharImage] = useState<boolean>(false);
-
   // Handle profile image removal
   const handleRemoveImage = () => {
     setProfileImagePreview(null);
     setProfileImageFile(null);
     setExistingProfileImage(null);
-    setShouldRemoveImage(true); // Mark for removal
+    setShouldRemoveImage(true);
   };
 
   // Handle Aadhar image removal
@@ -609,22 +613,19 @@ const PlayerForm = ({
   const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         toast.error('Please select an image file');
         return;
       }
       
-      // Validate file size (2MB)
       if (file.size > 2 * 1024 * 1024) {
         toast.error('Image size must be less than 2MB');
         return;
       }
       
       setProfileImageFile(file);
-      setShouldRemoveImage(false); // Reset removal flag when new file is selected
+      setShouldRemoveImage(false);
       
-      // Create preview URL
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImagePreview(reader.result as string);
@@ -670,7 +671,7 @@ const PlayerForm = ({
         <h1 className="text-2xl font-bold">
           {mode === "create" ? "Create" : "Update"} Player
         </h1>
-        <div className="w-16" /> {/* Spacer for center alignment */}
+        <div className="w-16" />
       </div>
 
       {/* Main Card */}
@@ -682,7 +683,6 @@ const PlayerForm = ({
               <div className="space-y-4">
                 <h3 className="text-lg font-medium border-b pb-2">Profile Image</h3>
                 
-                {/* Profile Image Display */}
                 <div className="flex items-center gap-4">
                   {profileImagePreview && (
                     <div className="relative">
@@ -692,14 +692,9 @@ const PlayerForm = ({
                         className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          console.log('Image failed to load:', profileImagePreview);
                           target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"%3E%3C/path%3E%3Ccircle cx="12" cy="7" r="4"%3E%3C/circle%3E%3C/svg%3E';
                         }}
-                        onLoad={() => {
-                          console.log('Image loaded successfully:', profileImagePreview);
-                        }}
                       />
-                      
                       <div className="mt-2 text-sm text-center">
                         {mode === "edit" ? "Current Image" : "Preview"}
                       </div>
@@ -726,7 +721,6 @@ const PlayerForm = ({
                       Supported size: Passport size (2×2 inches, Max 2MB)
                     </div>
                     
-                    {/* Image Upload Controls */}
                     <div className="flex gap-2 mt-2">
                       <label>
                         <Button 
@@ -773,492 +767,499 @@ const PlayerForm = ({
               <div className="space-y-4">
                 <h3 className="text-lg font-medium border-b pb-2">Personal Information (As per Aadhar)</h3>
             
-            {/* Name Fields - First, Middle, Last in a row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* First Name Field */}
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter first name"
-                        {...field}
-                        disabled={isFormLoading || aadharVerified}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Middle Name Field */}
-              <FormField
-                control={form.control}
-                name="middleName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Middle Name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter middle name"
-                        {...field}
-                        disabled={isFormLoading || aadharVerified}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Last Name Field */}
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter last name"
-                        {...field}
-                        disabled={isFormLoading || aadharVerified}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Mother Name Field */}
-            <FormField
-              control={form.control}
-              name="motherName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mother Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter mother name"
-                      {...field}
-                      disabled={isFormLoading || aadharVerified}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Date of Birth and Position Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Date of Birth Field */}
-              <FormField
-                control={form.control}
-                name="dateOfBirth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date Of Birth (According to Aadhar) <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter date of birth"
-                        {...field}
-                        disabled={isFormLoading || aadharVerified}
-                        type="date"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Position Field */}
-              <FormField
-                control={form.control}
-                name="position"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Playing Position</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={isFormLoading || aadharVerified}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select Playing Position" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Left Corner">Left Corner</SelectItem>
-                        <SelectItem value="Right Corner">Right Corner</SelectItem>
-                        <SelectItem value="Left Turn">Left Turn</SelectItem>
-                        <SelectItem value="Right Turn">Right Turn</SelectItem>
-                        <SelectItem value="Left Raider">Left Raider</SelectItem>
-                        <SelectItem value="Right Raider">Right Raider</SelectItem>
-                        <SelectItem value="All Rounder">All Rounder</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {isAdmin && (
-              <FormField
-                control={form.control}
-                name="clubId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Club
-                      {mode === "create" && <span className="text-red-500">*</span>}
-                    </FormLabel>
-                    <Popover open={clubPopoverOpen} onOpenChange={setClubPopoverOpen}>
-                      <PopoverTrigger asChild>
+                {/* Name Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={clubPopoverOpen}
-                            className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
-                            disabled={isFormLoading || isLoadingClubs || aadharVerified}
-                          >
-                            {field.value
-                              ? (clubsData || []).find((c) => c.id.toString() === field.value)?.clubName || "Select Club"
-                              : isLoadingClubs
-                                ? "Loading clubs..."
-                                : "Select Club"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
+                          <Input
+                            placeholder="Enter first name"
+                            {...field}
+                            disabled={isFormLoading || aadharVerified}
+                          />
                         </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search club..." />
-                          <CommandList>
-                            <CommandEmpty>No club found.</CommandEmpty>
-                            <CommandGroup>
-                              {(clubsData || []).map((club) => {
-                                const placeName = club.place?.placeName;
-                                const regionName = club.place?.region?.regionName;
-                                const rightText = [regionName, placeName].filter(Boolean).join(" • ");
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                                return (
-                                  <CommandItem
-                                    key={club.id}
-                                    value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
-                                    onSelect={() => {
-                                      field.onChange(club.id.toString());
-                                      setClubPopoverOpen(false);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        field.value === club.id.toString() ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <span className="flex-1 truncate">{club.clubName}</span>
-                                    {rightText ? (
-                                      <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
-                                    ) : null}
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
+                  <FormField
+                    control={form.control}
+                    name="middleName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Middle Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter middle name"
+                            {...field}
+                            disabled={isFormLoading || aadharVerified}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter last name"
+                            {...field}
+                            disabled={isFormLoading || aadharVerified}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Mother Name Field */}
+                <FormField
+                  control={form.control}
+                  name="motherName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mother Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter mother name"
+                          {...field}
+                          disabled={isFormLoading || aadharVerified}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Date of Birth, Position, and Chest Number Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date Of Birth (According to Aadhar) <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter date of birth"
+                            {...field}
+                            disabled={isFormLoading || aadharVerified}
+                            type="date"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="position"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Playing Position</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={isFormLoading || aadharVerified}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select Playing Position" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Left Corner">Left Corner</SelectItem>
+                            <SelectItem value="Right Corner">Right Corner</SelectItem>
+                            <SelectItem value="Left Turn">Left Turn</SelectItem>
+                            <SelectItem value="Right Turn">Right Turn</SelectItem>
+                            <SelectItem value="Left Raider">Left Raider</SelectItem>
+                            <SelectItem value="Right Raider">Right Raider</SelectItem>
+                            <SelectItem value="All Rounder">All Rounder</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="chestNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chest Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter chest number"
+                            {...field}
+                            disabled={isFormLoading || aadharVerified}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {isAdmin && (
+                  <FormField
+                    control={form.control}
+                    name="clubId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Club
+                          {mode === "create" && <span className="text-red-500">*</span>}
+                        </FormLabel>
+                        <Popover open={clubPopoverOpen} onOpenChange={setClubPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={clubPopoverOpen}
+                                className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
+                                disabled={isFormLoading || isLoadingClubs || aadharVerified}
+                              >
+                                {field.value
+                                  ? (clubsData || []).find((c) => c.id.toString() === field.value)?.clubName || "Select Club"
+                                  : isLoadingClubs
+                                    ? "Loading clubs..."
+                                    : "Select Club"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Search club..." />
+                              <CommandList>
+                                <CommandEmpty>No club found.</CommandEmpty>
+                                <CommandGroup>
+                                  {(clubsData || []).map((club) => {
+                                    const placeName = club.place?.placeName;
+                                    const regionName = club.place?.region?.regionName;
+                                    const rightText = [regionName, placeName].filter(Boolean).join(" • ");
+
+                                    return (
+                                      <CommandItem
+                                        key={club.id}
+                                        value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
+                                        onSelect={() => {
+                                          field.onChange(club.id.toString());
+                                          setClubPopoverOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            field.value === club.id.toString() ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        <span className="flex-1 truncate">{club.clubName}</span>
+                                        {rightText ? (
+                                          <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
+                                        ) : null}
+                                      </CommandItem>
+                                    );
+                                  })}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
-            )}
 
-            {/* Aadhar Image Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium border-b pb-2">Aadhar Image (optional)</h3>
-              <div className="flex items-center gap-4">
-                {aadharImagePreview && (
-                  <div className="relative">
-                    <img
-                      src={aadharImagePreview}
-                      alt="Aadhar Preview"
-                      className="w-24 h-24 object-cover border-2 border-gray-200 rounded"
-                    />
-                    <div className="mt-2 text-sm text-center">
-                      {mode === "edit" ? "Current Image" : "Preview"}
+                {/* Aadhar Image Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium border-b pb-2">Aadhar Image (optional)</h3>
+                  <div className="flex items-center gap-4">
+                    {aadharImagePreview && (
+                      <div className="relative">
+                        <img
+                          src={aadharImagePreview}
+                          alt="Aadhar Preview"
+                          className="w-24 h-24 object-cover border-2 border-gray-200 rounded"
+                        />
+                        <div className="mt-2 text-sm text-center">
+                          {mode === "edit" ? "Current Image" : "Preview"}
+                        </div>
+                      </div>
+                    )}
+                    {!aadharImagePreview && (
+                      <div className="w-24 h-24 bg-gray-100 border-2 border-gray-200 flex items-center justify-center rounded">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      <div className="text-sm text-muted-foreground">
+                        {mode === "edit" ? "Update Aadhar image" : "Add Aadhar image"} (optional)
+                      </div>
+                      <div className="text-xs text-muted-foreground">Supported formats: JPEG, PNG</div>
+                      <div className="text-xs text-muted-foreground">Max size: 2MB</div>
+                      <div className="flex gap-2 mt-2">
+                        <label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="cursor-pointer"
+                            disabled={isFormLoading || aadharVerified}
+                            asChild
+                          >
+                            <span>
+                              <Upload className="w-4 h-4 mr-2" />
+                              Choose Image
+                            </span>
+                          </Button>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAadharImageFileSelect}
+                            className="sr-only"
+                            disabled={isFormLoading || aadharVerified}
+                          />
+                        </label>
+                        {aadharImagePreview && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRemoveAadharImage}
+                            disabled={isFormLoading || aadharVerified}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-                {!aadharImagePreview && (
-                  <div className="w-24 h-24 bg-gray-100 border-2 border-gray-200 flex items-center justify-center rounded">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v14m7-7H5" />
-                    </svg>
-                  </div>
-                )}
-                <div className="flex flex-col gap-2">
-                  <div className="text-sm text-muted-foreground">
-                    {mode === "edit" ? "Update Aadhar image" : "Add Aadhar image"} (optional)
-                  </div>
-                  <div className="text-xs text-muted-foreground">Supported formats: JPEG, PNG</div>
-                  <div className="text-xs text-muted-foreground">Max size: 2MB</div>
-                  <div className="flex gap-2 mt-2">
-                    <label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="cursor-pointer"
-                        disabled={isFormLoading || aadharVerified}
-                        asChild
-                      >
-                        <span>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Choose Image
-                        </span>
-                      </Button>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAadharImageFileSelect}
-                        className="sr-only"
-                        disabled={isFormLoading || aadharVerified}
-                      />
-                    </label>
-                    {aadharImagePreview && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRemoveAadharImage}
-                        disabled={isFormLoading || aadharVerified}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Remove
-                      </Button>
+                </div>
+
+                {/* Mobile and Aadhaar Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="mobile"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mobile <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter mobile number"
+                            {...field}
+                            disabled={isFormLoading || aadharVerified}
+                            maxLength={10}
+                            type="tel"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="aadharNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Aadhar Number
+                          {mode === "create" && <span className="text-red-500">*</span>}
+                          {mode === "edit" && aadharVerified && (
+                            <span className="text-sm text-muted-foreground ml-2">(Locked after verification)</span>
+                          )}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Enter 12-digit Aadhar number"
+                            {...field}
+                            disabled={isFormLoading || (mode === "edit" && aadharVerified)}
+                            maxLength={12}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Aadhaar Verify Button & Status */}
+                {mode === "edit" && (
+                  <div className="flex items-center gap-3 mb-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={isFormLoading || isVerifying || aadharVerified}
+                      onClick={handleVerifyAadhar}
+                      className="flex items-center gap-2"
+                    >
+                      {isVerifying ? (
+                        <LoaderCircle className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      {aadharVerified ? "Verified" : "Verify"}
+                    </Button>
+                    {aadharVerified && (
+                      <Badge variant="secondary" className="bg-green-600 text-white">Verified</Badge>
                     )}
                   </div>
-                </div>
+                )}
+
+                {/* Address Field */}
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address (As per Aadhar) <span className="text-red-500">*</span></FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter address"
+                          {...field}
+                          disabled={isFormLoading || aadharVerified}
+                          rows={3}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </div>
 
-            {/* Mobile and Aadhaar Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Mobile Field */}
-              <FormField
-                control={form.control}
-                name="mobile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mobile <span className="text-red-500">*</span></FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter mobile number"
-                        {...field}
-                        disabled={isFormLoading || aadharVerified}
-                        maxLength={10}
-                        type="tel"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Groups Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">
+                  Groups{typeof playerAge === "number" ? ` (Age: ${playerAge})` : ""}
+                </h3>
+                
+                <FormField
+                  control={form.control}
+                  name="groupIds"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Groups <span className="text-red-500">*</span></FormLabel>
+                      <div className="border rounded-md p-2">
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {field.value.length > 0 ? (
+                            field.value.map((groupId) => {
+                              const group = groupsData?.find((g) => g.id.toString() === groupId);
+                              return (
+                                <Badge key={groupId} variant="secondary" className="text-xs">
+                                  {group?.groupName || groupId}
+                                  <button
+                                    type="button"
+                                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    onClick={() => {
+                                      field.onChange(field.value.filter((val) => val !== groupId));
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <div className="text-muted-foreground text-sm">No groups selected</div>
+                          )}
+                        </div>
 
-              {/* Aadhar Number Field */}
-              <FormField
-                control={form.control}
-                name="aadharNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Aadhar Number
-                      {mode === "create" && <span className="text-red-500">*</span>}
-                      {mode === "edit" && aadharVerified && (
-                        <span className="text-sm text-muted-foreground ml-2">(Locked after verification)</span>
-                      )}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter 12-digit Aadhar number"
-                        {...field}
-                        disabled={isFormLoading || (mode === "edit" && aadharVerified)}
-                        maxLength={12}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                        <div className="border-t pt-2">
+                          <div className="text-sm font-medium mb-1">Available Groups:</div>
+                          {isLoadingGroups ? (
+                            <div className="flex items-center justify-center p-2">
+                              <LoaderCircle className="h-4 w-4 animate-spin" />
+                              <span className="ml-2">Loading groups...</span>
+                            </div>
+                          ) : (
+                            <div className="max-h-[200px] overflow-y-scroll">
+                              {groupsData?.map((group) => {
+                                const groupId = group.id.toString();
+                                const isSelected = field.value.includes(groupId);
+                                const eligibleByAge = isGroupEligibleByAge(group, playerAge);
+                                return (
+                                  <div
+                                    key={group.id}
+                                    className={cn(
+                                      "flex items-center px-2 py-1.5 text-sm cursor-pointer rounded-sm",
+                                      isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+                                      !eligibleByAge ? "opacity-50 cursor-not-allowed" : ""
+                                    )}
+                                    onClick={() => {
+                                      if (!eligibleByAge) return;
+                                      const currentValues = [...field.value];
+                                      const newValues = isSelected
+                                        ? currentValues.filter(id => id !== groupId)
+                                        : [...currentValues, groupId];
+                                      field.onChange(newValues);
+                                    }}
+                                  >
+                                    <div className={cn(
+                                      "w-4 h-4 border rounded flex items-center justify-center",
+                                      isSelected ? "bg-primary border-primary" : "border-input"
+                                    )}>
+                                      {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
+                                    </div>
+                                    <span className="ml-2">{group.groupName}</span>
+                                    <span className="ml-auto text-xs text-muted-foreground">
+                                      {group.gender}, {group.age}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-            {/* Aadhaar Verify Button & Status */}
-            {mode === "edit" && (
-              <div className="flex items-center gap-3 mb-4">
+              {/* Form Actions */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  disabled={isFormLoading || isVerifying || aadharVerified}
-                  onClick={handleVerifyAadhar}
-                  className="flex items-center gap-2"
+                  onClick={handleCancel}
+                  disabled={isFormLoading || aadharVerified}
                 >
-                  {isVerifying ? (
-                    <LoaderCircle className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
-                  {aadharVerified ? "Verified" : "Verify"}
+                  Cancel
                 </Button>
-                {aadharVerified && (
-                  <Badge variant="secondary" className="bg-green-600 text-white">Verified</Badge>
-                )}
+                <Button type="submit" disabled={isFormLoading || aadharVerified}>
+                  {isFormLoading && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                  {mode === "create" ? "Create" : "Update"} Player
+                </Button>
               </div>
-            )}
-
-            {/* Address Field */}
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address (As per Aadhar) <span className="text-red-500">*</span></FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter address"
-                      {...field}
-                      disabled={isFormLoading || aadharVerified}
-                      rows={3}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Groups Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium border-b pb-2">
-              Groups{typeof playerAge === "number" ? ` (Age: ${playerAge})` : ""}
-            </h3>
-            
-            {/* Groups Field - Multiselect */}
-            <FormField
-              control={form.control}
-              name="groupIds"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Groups <span className="text-red-500">*</span></FormLabel>
-                  <div className="border rounded-md p-2">
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {field.value.length > 0 ? (
-                        field.value.map((groupId) => {
-                          const group = groupsData?.find((g) => g.id.toString() === groupId);
-                          return (
-                            <Badge key={groupId} variant="secondary" className="text-xs">
-                              {group?.groupName || groupId}
-                              <button
-                                type="button"
-                                className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                onClick={() => {
-                                  field.onChange(field.value.filter((val) => val !== groupId));
-                                }}
-                              >
-                                ×
-                              </button>
-                            </Badge>
-                          );
-                        })
-                      ) : (
-                        <div className="text-muted-foreground text-sm">No groups selected</div>
-                      )}
-                    </div>
-
-                    <div className="border-t pt-2">
-                      <div className="text-sm font-medium mb-1">Available Groups:</div>
-                      {isLoadingGroups ? (
-                        <div className="flex items-center justify-center p-2">
-                          <LoaderCircle className="h-4 w-4 animate-spin" />
-                          <span className="ml-2">Loading groups...</span>
-                        </div>
-                      ) : (
-                        <div className="max-h-[200px] overflow-y-auto">
-                          {groupsData?.map((group) => {
-                            const groupId = group.id.toString();
-                            const isSelected = field.value.includes(groupId);
-                            const eligibleByAge = isGroupEligibleByAge(group, playerAge);
-                            return (
-                              <div
-                                key={group.id}
-                                className={cn(
-                                  "flex items-center px-2 py-1.5 text-sm cursor-pointer rounded-sm",
-                                  isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
-                                  !eligibleByAge ? "opacity-50 cursor-not-allowed" : ""
-                                )}
-                                onClick={() => {
-                                  if (!eligibleByAge) return;
-                                  // Toggle the selection
-                                  const currentValues = [...field.value];
-                                  const newValues = isSelected
-                                    ? currentValues.filter(id => id !== groupId)
-                                    : [...currentValues, groupId];
-
-                                  // Update the form value directly
-                                  field.onChange(newValues);
-                                }}
-                              >
-                                <div className={cn(
-                                  "w-4 h-4 border rounded flex items-center justify-center",
-                                  isSelected ? "bg-primary border-primary" : "border-input"
-                                )}>
-                                  {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
-                                </div>
-                                <span className="ml-2">{group.groupName}</span>
-                                <span className="ml-auto text-xs text-muted-foreground">
-                                  {group.gender}, {group.age}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={isFormLoading || aadharVerified}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isFormLoading || aadharVerified}>
-              {isFormLoading && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === "create" ? "Create" : "Update"} Player
-            </Button>
-          </div>
-        </form>
-      </Form>
-    </CardContent>
-  </Card>
-</div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

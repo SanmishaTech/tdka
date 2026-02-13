@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Table,
   TableBody,
@@ -579,9 +580,8 @@ const CompetitionList = () => {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="observer-password">Password</Label>
-              <Input
+              <PasswordInput
                 id="observer-password"
-                type="password"
                 placeholder={existingObserver ? 'Leave blank to keep current password' : 'Enter a password'}
                 value={observerPassword}
                 onChange={(e) => setObserverPassword(e.target.value)}

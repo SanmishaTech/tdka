@@ -32,7 +32,7 @@ const CompetitionDetails = () => {
     if (storedUser) {
       userRole = JSON.parse(storedUser)?.role || 'admin';
     }
-  } catch {}
+  } catch { }
   const isAdmin = userRole === 'admin';
   const isClubAdmin = userRole === 'clubadmin';
   const isObserver = userRole === 'observer';
@@ -71,8 +71,8 @@ const CompetitionDetails = () => {
       isObserver
         ? `/observercompetitions/${id}/clubs/${clubId}`
         : isReferee
-        ? `/refereecompetitions/${id}/clubs/${clubId}`
-        : `/competitions/${id}/clubs/${clubId}`
+          ? `/refereecompetitions/${id}/clubs/${clubId}`
+          : `/competitions/${id}/clubs/${clubId}`
     );
   };
 
@@ -80,10 +80,10 @@ const CompetitionDetails = () => {
   const handleDownloadClubPDF = async (clubId: number, clubName: string) => {
     try {
       console.log('Starting PDF download for club:', clubId, clubName);
-      
+
       // Get the auth token from localStorage
       const token = localStorage.getItem('authToken');
-      
+
       if (!token) {
         console.error('No authentication token found');
         toast.error('Authentication required. Please log in again.');
@@ -91,7 +91,7 @@ const CompetitionDetails = () => {
       }
 
       console.log('Making request to:', `/api/competitions/${id}/clubs/${clubId}/pdf`);
-      
+
       // Show loading toast
       toast.loading('Generating PDF...', { id: 'pdf-download' });
 
@@ -115,19 +115,19 @@ const CompetitionDetails = () => {
       // Get the PDF blob
       const blob = await response.blob();
       console.log('Blob size:', blob.size, 'Type:', blob.type);
-      
+
       if (blob.size === 0) {
         throw new Error('Received empty PDF file');
       }
-      
+
       // Create blob URL and open in new tab
       const url = window.URL.createObjectURL(blob);
       const newWindow = window.open(url, '_blank');
-      
+
       if (!newWindow) {
         // Fallback: if popup blocked, show message and provide download option
         toast.error('Popup blocked. Please allow popups or download the PDF instead.', { id: 'pdf-download' });
-        
+
         // Provide download as fallback
         const link = document.createElement('a');
         link.href = url;
@@ -139,13 +139,13 @@ const CompetitionDetails = () => {
         // Success toast
         toast.success('PDF opened in new tab!', { id: 'pdf-download' });
         console.log('PDF opened in new tab successfully');
-        
+
         // Clean up the blob URL after a delay to ensure the PDF loads
         setTimeout(() => {
           window.URL.revokeObjectURL(url);
         }, 1000);
       }
-      
+
     } catch (err: unknown) {
       console.error('Error downloading PDF:', err);
       const message = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -251,6 +251,18 @@ const CompetitionDetails = () => {
               </div>
             )}
 
+            {competition?.address && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Venue Address</span>
+                </div>
+                <div className="text-sm text-muted-foreground pl-6">
+                  {competition.address}
+                </div>
+              </div>
+            )}
+
             {/* Participating Groups */}
             {competition?.groups && competition.groups.length > 0 && (
               <div className="space-y-3">
@@ -344,7 +356,7 @@ const CompetitionDetails = () => {
                             <Info className="h-4 w-4" />
                             <span className="sr-only">View Details</span>
                           </Button>
-                          
+
                           {(isAdmin || isClubAdmin) && (
                             <Button
                               variant="ghost"
@@ -405,14 +417,14 @@ const CompetitionDetails = () => {
                 </div>
                 <div className="text-sm text-muted-foreground">Total Registrations</div>
               </div>
-              
+
               <div className="text-center p-4 border rounded-lg">
                 <div className="text-2xl font-bold text-green-600">
                   {competition.clubs?.length || 0}
                 </div>
                 <div className="text-sm text-muted-foreground">Participating Clubs</div>
               </div>
-              
+
               <div className="text-center p-4 border rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">
                   {competition.maxPlayers}

@@ -42,6 +42,7 @@ interface CompetitionData {
   lastEntryDate: string;
   ageEligibilityDate?: string; // Reference date for age calculations
   weight?: string;
+  address?: string; // Venue address
   rules?: string; // Competition rules as rich text HTML
   createdAt: string;
   updatedAt: string;
@@ -86,6 +87,7 @@ const competitionFormSchema = z.object({
     .min(1, "Age eligibility date is required")
     .max(255, "Age eligibility date must not exceed 255 characters"),
   weight: z.string().max(255, "Weight must not exceed 255 characters").optional(),
+  address: z.string().optional(),
 });
 
 // Helper to extract error message from API error
@@ -136,6 +138,7 @@ const CompetitionForm = ({
       rules: "",
       ageEligibilityDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
       weight: "",
+      address: "",
     },
   });
 
@@ -164,7 +167,7 @@ const CompetitionForm = ({
 
     // Find the next higher age limit to create "Under X" category
     let categoryAge = calculatedAge + 1;
-    
+
     // Find the appropriate "Under X" category by looking for the next age group
     for (const ageLimit of ageGroups) {
       if (calculatedAge < ageLimit) {
@@ -296,6 +299,7 @@ const CompetitionForm = ({
       form.setValue("rules", competitionData.rules || "");
       form.setValue("ageEligibilityDate", competitionData.ageEligibilityDate || new Date().toISOString().split('T')[0]);
       form.setValue("weight", competitionData.weight || "");
+      form.setValue("address", competitionData.address || "");
     }
   }, [competitionData, mode, form]);
 
@@ -567,24 +571,45 @@ const CompetitionForm = ({
                 />
               </div>
 
-              {/* Weight Field */}
-              <FormField
-                control={form.control}
-                name="weight"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weight</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter weight"
-                        {...field}
-                        disabled={isFormLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Weight Field */}
+                <FormField
+                  control={form.control}
+                  name="weight"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weight</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter weight"
+                          {...field}
+                          disabled={isFormLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Address Field */}
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Venue Address</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter venue address"
+                          {...field}
+                          disabled={isFormLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {/* Groups Field - Multiselect */}
               <FormField
@@ -626,7 +651,7 @@ const CompetitionForm = ({
                             <span className="ml-2">Loading groups...</span>
                           </div>
                         ) : (
-                          <div className="max-h-[200px] overflow-y-auto" style={{ maxHeight: "calc(5 * 36px)", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                          <div className="max-h-[200px] overflow-y-scroll" style={{ maxHeight: "calc(5 * 36px)" }}>
                             {groupsData?.map((group) => {
                               const groupId = group.id.toString();
                               const isSelected = field.value.includes(groupId);
@@ -705,7 +730,42 @@ const CompetitionForm = ({
                       </div>
 
                       <div className="border-t pt-2">
-                        <div className="text-sm font-medium mb-1">Available Clubs:</div>
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                          <div className="text-sm font-medium">Available Clubs:</div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-xs text-muted-foreground">
+                              Selected: {field.value?.length || 0}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={isFormLoading || filteredClubs.length === 0}
+                              onClick={() => {
+                                const filteredIds = filteredClubs.map((c) => c.id.toString());
+                                const current = Array.isArray(field.value) ? field.value : [];
+                                const merged = Array.from(new Set([...current, ...filteredIds]));
+                                field.onChange(merged);
+                              }}
+                            >
+                              Select all
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={isFormLoading || (field.value?.length || 0) === 0}
+                              onClick={() => {
+                                const filteredIds = new Set(filteredClubs.map((c) => c.id.toString()));
+                                const current = Array.isArray(field.value) ? field.value : [];
+                                const next = current.filter((id) => !filteredIds.has(id));
+                                field.onChange(next);
+                              }}
+                            >
+                              Deselect all
+                            </Button>
+                          </div>
+                        </div>
                         <div className="mb-2">
                           <Input
                             placeholder="Search clubs..."
