@@ -85,7 +85,7 @@ const CompetitionList = () => {
     if (storedUser) {
       userRole = JSON.parse(storedUser)?.role || 'admin';
     }
-  } catch {}
+  } catch { }
   const isAdmin = userRole === 'admin';
   const isClubAdmin = userRole === 'clubadmin';
 
@@ -268,8 +268,8 @@ const CompetitionList = () => {
       isObserverRole
         ? `/observercompetitions/${id}`
         : isRefereeRole
-        ? `/refereecompetitions/${id}`
-        : `/competitions/${id}`
+          ? `/refereecompetitions/${id}`
+          : `/competitions/${id}`
     );
   };
 
@@ -398,7 +398,7 @@ const CompetitionList = () => {
                   <TableHead>From Date</TableHead>
                   <TableHead>To Date</TableHead>
                   <TableHead>Age</TableHead>
-                  <TableHead>Age Eligibility Date</TableHead>
+                  <TableHead>Groups</TableHead>
                   <TableHead>Last Entry Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -425,7 +425,17 @@ const CompetitionList = () => {
                       <TableCell>{formatDate(competition.fromDate)}</TableCell>
                       <TableCell>{formatDate(competition.toDate)}</TableCell>
                       <TableCell>{competition.age}</TableCell>
-                      <TableCell>{formatDate(competition.ageEligibilityDate)}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {Array.isArray(competition.groups) && competition.groups.length > 0 ? (
+                            <div title={competition.groups.map((g: any) => g.groupName).join(", ")}>
+                              {competition.groups.length} Group(s)
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{formatDate(competition.lastEntryDate)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>

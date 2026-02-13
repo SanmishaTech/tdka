@@ -76,6 +76,19 @@ const CompetitionDetails = () => {
     );
   };
 
+  // Calculate approximate age category from date
+  const getApproxAge = (dateStr: string) => {
+    if (!dateStr) return null;
+    const birthDate = new Date(dateStr);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   // Handle PDF download for club details and players
   const handleDownloadClubPDF = async (clubId: number, clubName: string) => {
     try {
@@ -274,10 +287,26 @@ const CompetitionDetails = () => {
                   {competition.groups.map((group: any) => (
                     <div key={group.id} className="border rounded-lg p-3">
                       <h4 className="font-medium text-sm mb-2">{group.groupName}</h4>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 mb-2">
                         <Badge variant="outline" className="text-xs">{group.gender}</Badge>
                         <Badge variant="outline" className="text-xs">{group.age}</Badge>
                       </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 p-1.5 rounded">
+                        <Calendar className="h-3 w-3" />
+                        <span className="font-medium">Born On/After:</span>
+                        <span>
+                          {group.ageEligibilityDate
+                            ? new Date(group.ageEligibilityDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      {group.ageEligibilityDate && (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground bg-blue-50/50 p-1.5 rounded border border-blue-100">
+                          <Info className="h-3 w-3 text-blue-500" />
+                          <span className="font-medium text-blue-700">Max Age:</span>
+                          <span className="text-blue-600">~{getApproxAge(group.ageEligibilityDate)} years</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

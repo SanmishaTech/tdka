@@ -36,16 +36,24 @@ interface CompetitionData {
   maxPlayers: number;
   fromDate: string;
   toDate: string;
-  groups?: (string | Group)[]; // Array of group IDs or group objects
+  groups?: (string | Group | CompetitionGroup)[]; // Array of IDs, Group objects, or CompetitionGroup objects
   clubs?: (string | Club)[]; // Array of club IDs or club objects
-  age?: string; // Legacy field, will be removed
+  age?: string; // Legacy field
   lastEntryDate: string;
-  ageEligibilityDate?: string; // Reference date for age calculations
+  // ageEligibilityDate removed from root
   weight?: string;
   address?: string; // Venue address
   rules?: string; // Competition rules as rich text HTML
   createdAt: string;
   updatedAt: string;
+}
+
+interface CompetitionGroup {
+  id: number; // Group ID
+  groupName: string;
+  gender: string;
+  age: string;
+  ageEligibilityDate: string; // Specific date for this group
 }
 
 interface Group {
@@ -75,17 +83,17 @@ const competitionFormSchema = z.object({
   toDate: z.string()
     .min(1, "To date is required")
     .max(255, "To date must not exceed 255 characters"),
-  groups: z.array(z.string())
-    .min(1, "At least one group must be selected"),
+  // groups is now array of objects { id, ageEligibilityDate }
+  groups: z.array(z.object({
+    id: z.string(),
+    ageEligibilityDate: z.string().min(1, "Eligibility date required")
+  })).min(1, "At least one group must be selected"),
   clubs: z.array(z.string())
     .optional(),
   lastEntryDate: z.string()
     .min(1, "Last entry date is required")
     .max(255, "Last entry date must not exceed 255 characters"),
   rules: z.string().optional(),
-  ageEligibilityDate: z.string()
-    .min(1, "Age eligibility date is required")
-    .max(255, "Age eligibility date must not exceed 255 characters"),
   weight: z.string().max(255, "Weight must not exceed 255 characters").optional(),
   address: z.string().optional(),
 });
@@ -136,7 +144,6 @@ const CompetitionForm = ({
       clubs: [],
       lastEntryDate: "",
       rules: "",
-      ageEligibilityDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
       weight: "",
       address: "",
     },
@@ -200,14 +207,13 @@ const CompetitionForm = ({
   });
 
   // Watch the age eligibility date to update category
-  const ageEligibilityDate = form.watch("ageEligibilityDate");
-  const ageCategory = calculateAgeCategory(ageEligibilityDate);
-  const selectedGroupIds = form.watch("groups");
-  const selectedGroups = (selectedGroupIds || []).map((groupId) =>
-    groupsData?.find((g) => g.id.toString() === groupId)
-  );
-  const hasMenOrWomenGroupSelected = selectedGroups.some((g) => {
-    const name = String(g?.groupName || "").trim().toLowerCase();
+  // Watch selected groups to display their date inputs
+  const selectedGroups = form.watch("groups");
+
+  // Calculate if senior competition based on selected groups
+  const hasMenOrWomenGroupSelected = (selectedGroups || []).some((gItem) => {
+    const groupData = groupsData?.find(g => g.id.toString() === gItem.id);
+    const name = String(groupData?.groupName || "").trim().toLowerCase();
     return name === "men" || name === "women";
   });
 
@@ -260,22 +266,28 @@ const CompetitionForm = ({
       form.setValue("toDate", competitionData.toDate || "");
 
       // Handle groups data - convert objects to IDs if needed
+      // Handle groups data
       if (competitionData.groups && competitionData.groups.length > 0) {
-        // Check if groups are objects or strings
-        const groupIds = competitionData.groups.map((group: any) => {
-          // If it's an object with id property, extract the id
-          if (typeof group === 'object' && group.id) {
-            return group.id.toString();
+        // Map backend response to form structure { id, ageEligibilityDate }
+        const formattedGroups = competitionData.groups.map((group: any) => {
+          // If backend returns CompetitionGroup objects (with ageEligibilityDate)
+          if (typeof group === 'object' && group.id && group.ageEligibilityDate) {
+            return {
+              id: group.id.toString(),
+              ageEligibilityDate: group.ageEligibilityDate
+            };
           }
-          // If it's already a string, use it as is
-          return group.toString();
+          // Fallback for objects without date or simple strings (shouldn't happen with new backend)
+          // If legacy, maybe use competitionData.ageEligibilityDate if it exists?
+          const fallbackDate = new Date().toISOString().split('T')[0];
+
+          if (typeof group === 'object' && group.id) {
+            return { id: group.id.toString(), ageEligibilityDate: fallbackDate };
+          }
+          return { id: group.toString(), ageEligibilityDate: fallbackDate };
         });
-        form.setValue("groups", groupIds);
-      } else if (competitionData.age) {
-        // If we have legacy age data but no groups, we'll need to handle this
-        // This is a temporary solution until backend is updated
-        console.log("Using legacy age field:", competitionData.age);
-        // You might want to find matching groups by age or set an empty array
+        form.setValue("groups", formattedGroups);
+      } else {
         form.setValue("groups", []);
       }
 
@@ -297,7 +309,7 @@ const CompetitionForm = ({
 
       form.setValue("lastEntryDate", competitionData.lastEntryDate || "");
       form.setValue("rules", competitionData.rules || "");
-      form.setValue("ageEligibilityDate", competitionData.ageEligibilityDate || new Date().toISOString().split('T')[0]);
+      // ageEligibilityDate removed from top level
       form.setValue("weight", competitionData.weight || "");
       form.setValue("address", competitionData.address || "");
     }
@@ -546,33 +558,7 @@ const CompetitionForm = ({
                   )}
                 />
 
-                {/* Age Eligibility Date Field */}
-                <FormField
-                  control={form.control}
-                  name="ageEligibilityDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Age Eligibility Date <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Select age eligibility reference date"
-                          {...field}
-                          disabled={isFormLoading}
-                          type="date"
-                        />
-                      </FormControl>
-                      {/* Computed Age + Helper (inline) */}
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {ageEligibilityDate && ageCategory ? `Age: ${ageCategory.age}, ` : ''}Select a reference date for age calculation. Players born on or after this date will be eligible for the calculated age category.
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Weight Field */}
+                {/* Age Eligibility Date Field moved to per-group selection below */}
                 <FormField
                   control={form.control}
                   name="weight"
@@ -590,7 +576,9 @@ const CompetitionForm = ({
                     </FormItem>
                   )}
                 />
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Address Field */}
                 <FormField
                   control={form.control}
@@ -619,32 +607,64 @@ const CompetitionForm = ({
                   <FormItem className="flex flex-col">
                     <FormLabel>Groups <span className="text-red-500">*</span></FormLabel>
                     <div className="border rounded-md p-2">
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {field.value.length > 0 ? (
-                          field.value.map((groupId) => {
-                            const group = groupsData?.find((g) => g.id.toString() === groupId);
+                      {/* Selected Groups Display with Date Inputs */}
+                      {field.value.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          {field.value.map((groupItem, index) => {
+                            const group = groupsData?.find((g) => g.id.toString() === groupItem.id);
+                            const ageCat = calculateAgeCategory(groupItem.ageEligibilityDate);
+
                             return (
-                              <Badge key={groupId} variant="secondary" className="text-xs">
-                                {group?.groupName || groupId}
-                                <button
-                                  type="button"
-                                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                  onClick={() => {
-                                    field.onChange(field.value.filter((val) => val !== groupId));
-                                  }}
-                                >
-                                  ×
-                                </button>
-                              </Badge>
+                              <div key={groupItem.id} className="p-3 border rounded-md bg-muted/20">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="font-medium flex items-center gap-2">
+                                    {group?.groupName || `Group ${groupItem.id}`}
+                                    <Badge variant="outline" className="text-xs font-normal">
+                                      {group?.gender}, {group?.age}
+                                    </Badge>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => {
+                                      const newValues = field.value.filter((val) => val.id !== groupItem.id);
+                                      field.onChange(newValues);
+                                    }}
+                                  >
+                                    ×
+                                  </Button>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-2">
+                                  <FormLabel className="text-xs">Age Eligibility Date <span className="text-red-500">*</span></FormLabel>
+                                  <div className="flex flex-col sm:flex-row gap-3">
+                                    <Input
+                                      type="date"
+                                      value={groupItem.ageEligibilityDate}
+                                      onChange={(e) => {
+                                        const newVal = [...field.value];
+                                        newVal[index] = { ...newVal[index], ageEligibilityDate: e.target.value };
+                                        field.onChange(newVal);
+                                      }}
+                                      className="h-8 max-w-[200px]"
+                                    />
+                                    {groupItem.ageEligibilityDate && ageCat && (
+                                      <div className="text-xs text-muted-foreground flex items-center">
+                                        Max Age: ~{ageCat.age} years ({ageCat.category})
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             );
-                          })
-                        ) : (
-                          <div className="text-muted-foreground text-sm">No groups selected</div>
-                        )}
-                      </div>
+                          })}
+                        </div>
+                      )}
 
                       <div className="border-t pt-2">
-                        <div className="text-sm font-medium mb-1">Available Groups:</div>
+                        <div className="text-sm font-medium mb-1">Add Groups:</div>
                         {isLoadingGroups ? (
                           <div className="flex items-center justify-center p-2">
                             <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -654,23 +674,23 @@ const CompetitionForm = ({
                           <div className="max-h-[200px] overflow-y-scroll" style={{ maxHeight: "calc(5 * 36px)" }}>
                             {groupsData?.map((group) => {
                               const groupId = group.id.toString();
-                              const isSelected = field.value.includes(groupId);
+                              const isSelected = field.value.some(item => item.id === groupId);
                               return (
                                 <div
                                   key={group.id}
                                   className={cn(
                                     "flex items-center px-2 py-1.5 text-sm cursor-pointer rounded-sm",
-                                    isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                                    isSelected ? "bg-accent text-accent-foreground opacity-50 cursor-not-allowed" : "hover:bg-muted"
                                   )}
                                   onClick={() => {
-                                    // Toggle the selection
-                                    const currentValues = [...field.value];
-                                    const newValues = isSelected
-                                      ? currentValues.filter(id => id !== groupId)
-                                      : [...currentValues, groupId];
+                                    if (isSelected) return;
 
-                                    // Update the form value directly
-                                    field.onChange(newValues);
+                                    // Add to selection with default date (today)
+                                    const newItem = {
+                                      id: groupId,
+                                      ageEligibilityDate: new Date().toISOString().split('T')[0]
+                                    };
+                                    field.onChange([...field.value, newItem]);
                                   }}
                                 >
                                   <div className="flex items-center gap-2 w-full">

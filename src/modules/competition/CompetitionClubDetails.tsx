@@ -31,7 +31,7 @@ const CompetitionClubDetails = () => {
     if (storedUser) {
       userRole = JSON.parse(storedUser)?.role || 'admin';
     }
-  } catch {}
+  } catch { }
   const isObserver = userRole === 'observer';
 
   // Fetch competition details
@@ -142,13 +142,13 @@ const CompetitionClubDetails = () => {
                 <Trophy className="h-5 w-5" />
                 Competition Information
               </h3>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Competition:</span>
                   <span>{competition?.competitionName}</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">Period:</span>
@@ -173,6 +173,27 @@ const CompetitionClubDetails = () => {
                   </div>
                 )}
               </div>
+
+              {/* Groups List */}
+              {competition?.groups && competition.groups.length > 0 && (
+                <div className="space-y-2 mt-4 pt-4 border-t">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Groups & Eligibility:</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {competition.groups.map((group: any) => (
+                      <div key={group.id} className="text-sm border rounded p-2 bg-muted/20">
+                        <div className="font-medium">{group.groupName}</div>
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Cutoff: {group.ageEligibilityDate ? new Date(group.ageEligibilityDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Club Info */}
@@ -181,13 +202,13 @@ const CompetitionClubDetails = () => {
                 <MapPin className="h-5 w-5" />
                 Club Information
               </h3>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Club Name:</span>
                   <span>{club?.clubName}</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Affiliation Number:</span>
                   <Badge variant="outline">{club?.affiliationNumber}</Badge>
