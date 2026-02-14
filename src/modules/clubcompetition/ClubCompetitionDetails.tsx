@@ -299,7 +299,14 @@ const ClubCompetitionDetails = () => {
 
         if (!group.ageEligibilityDate) return true; // Open group
         const cutoff = new Date(`${group.ageEligibilityDate}T00:00:00`);
-        return !isNaN(cutoff.getTime()) && dob >= cutoff;
+        if (isNaN(cutoff.getTime())) return true;
+
+        // Check based on ageType from the group
+        const ageType = group.ageType || group.group?.ageType || "UNDER";
+        if (ageType === "ABOVE") {
+          return dob <= cutoff; // Must be born ON or BEFORE (older)
+        }
+        return dob >= cutoff; // UNDER: Must be born ON or AFTER (younger);
       });
 
       if (qualifyingGroups.length > 0) {
@@ -585,7 +592,14 @@ const ClubCompetitionDetails = () => {
                                                   <ul className="list-disc pl-3">
                                                     {competition.groups
                                                       .filter((g: any) => player.groups?.some((pg: any) => pg.id === g.groupId))
-                                                      .filter((g: any) => !g.ageEligibilityDate || new Date(player.dateOfBirth) >= new Date(g.ageEligibilityDate))
+                                                      .filter((g: any) => {
+                                                        if (!g.ageEligibilityDate) return true;
+                                                        const dob = new Date(player.dateOfBirth);
+                                                        const cutoff = new Date(g.ageEligibilityDate);
+                                                        const ageType = g.ageType || g.group?.ageType || "UNDER";
+                                                        if (ageType === "ABOVE") return dob <= cutoff;
+                                                        return dob >= cutoff;
+                                                      })
                                                       .map((g: any) => (
                                                         <li key={g.id} className="text-green-600 font-medium">
                                                           {g.groupName}

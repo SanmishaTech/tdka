@@ -10,12 +10,15 @@ export interface Referee {
   emailId?: string | null;
   dateOfBirth?: string | null;
   bloodGroup?: string | null;
-  zillaParishadPassYear?: number | null;
-  statePanchayatPassYear?: number | null;
-  allIndiaPanchayatPassYear?: number | null;
+  districtParishadPassYear?: number | null;
+  stateRefreeExamPassYear?: number | null;
+  allIndiaRefreeExamPassYear?: number | null;
   officeAddress?: string | null;
   officePincode?: string | null;
   officeContactNumber?: string | null;
+  aadharNumber?: string | null;
+  aadharImage?: string | null;
+  aadharVerified?: boolean;
   user?: {
     id: number;
     email: string;
@@ -35,12 +38,14 @@ export interface RefereeFormData {
   emailId: string;
   dateOfBirth?: string;
   bloodGroup?: string;
-  zillaParishadPassYear?: string;
-  statePanchayatPassYear?: string;
-  allIndiaPanchayatPassYear?: string;
+  districtParishadPassYear?: string;
+  stateRefreeExamPassYear?: string;
+  allIndiaRefreeExamPassYear?: string;
   officeAddress?: string;
   officePincode?: string;
   officeContactNumber?: string;
+  aadharNumber?: string;
+  aadharImage?: File;
   password?: string;
 }
 

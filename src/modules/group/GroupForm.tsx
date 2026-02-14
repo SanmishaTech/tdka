@@ -32,13 +32,13 @@ import { post, put, get } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
 
 // Define interfaces for API responses
-interface GroupData {
-  id: number;
-  groupName: string;
-  gender: string;
-  age: string;
-  createdAt: string;
-  updatedAt: string;
+id: number;
+groupName: string;
+gender: string;
+age: string;
+ageType ?: "UNDER" | "ABOVE";
+createdAt: string;
+updatedAt: string;
 }
 
 // Create schema for group form
@@ -50,8 +50,9 @@ const groupFormSchema = z.object({
     errorMap: () => ({ message: "Gender must be one of: Men, Women, Boys, Girls" }),
   }),
   age: z.string()
-    .min(1, "Age limit is required")
-    .max(50, "Age limit must not exceed 50 characters"),
+    .min(1, "Age is required")
+    .max(50, "Age must not exceed 50 characters"),
+  ageType: z.enum(["UNDER", "ABOVE"]).optional(),
 });
 
 // Helper to extract user-friendly message from API error
@@ -106,6 +107,7 @@ const GroupForm = ({
       groupName: "",
       gender: undefined,
       age: "",
+      ageType: undefined,
     },
   });
 
@@ -140,6 +142,7 @@ const GroupForm = ({
         }
       }
       form.setValue("age", groupData.age || "");
+      if (groupData.ageType) form.setValue("ageType", groupData.ageType);
     }
   }, [groupData, mode, form]);
 
@@ -247,9 +250,9 @@ const GroupForm = ({
                 <FormItem>
                   <FormLabel>Group Name <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Enter group name" 
-                      {...field} 
+                    <Input
+                      placeholder="Enter group name"
+                      {...field}
                       disabled={isFormLoading}
                     />
                   </FormControl>
@@ -293,11 +296,11 @@ const GroupForm = ({
               name="age"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Age Limit <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Age Label <span className="text-red-500">*</span></FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="Enter age limit" 
-                      {...field} 
+                    <Input
+                      placeholder="e.g. Under 18"
+                      {...field}
                       disabled={isFormLoading}
                     />
                   </FormControl>
@@ -305,6 +308,35 @@ const GroupForm = ({
                 </FormItem>
               )}
             />
+
+            {/* Age Type Field */}
+            <FormField
+              control={form.control}
+              name="ageType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Age Condition</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || undefined}
+                    disabled={isFormLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="UNDER">Under</SelectItem>
+                      <SelectItem value="ABOVE">Above</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+
           </div>
 
           {/* Form Actions */}

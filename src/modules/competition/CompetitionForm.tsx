@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { LoaderCircle, Check, ArrowLeft } from "lucide-react";
+import { LoaderCircle, Check, ArrowLeft, Info } from "lucide-react";
 
 // PrimeReact Editor
 import { Editor } from 'primereact/editor';
@@ -24,6 +24,12 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Services and utilities
 import { post, put, get, postupload, putupload } from "@/services/apiService";
@@ -62,6 +68,7 @@ interface Group {
   groupName: string;
   gender: string;
   age: string;
+  ageType?: "UNDER" | "ABOVE";
 }
 
 interface Club {
@@ -762,7 +769,7 @@ const CompetitionForm = ({
                                   <div className="font-medium flex items-center gap-2">
                                     {group?.groupName || `Group ${groupItem.id}`}
                                     <Badge variant="outline" className="text-xs font-normal">
-                                      {group?.gender}, {group?.age}
+                                      {group?.gender}, {group?.ageType === "UNDER" ? "Under " : group?.ageType === "ABOVE" ? "Above " : ""}{group?.age}
                                     </Badge>
                                   </div>
                                   <Button
@@ -780,7 +787,22 @@ const CompetitionForm = ({
                                 </div>
 
                                 <div className="grid grid-cols-1 gap-2">
-                                  <FormLabel className="text-xs">Age Eligibility Date <span className="text-red-500">*</span></FormLabel>
+                                  <div className="flex items-center gap-2">
+                                    <FormLabel className="text-xs">Age Eligibility Date <span className="text-red-500">*</span></FormLabel>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info className="h-3 w-3 text-muted-foreground cursor-pointer" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <div className="text-xs space-y-1">
+                                            <p><strong>Under</strong> groups: Born <strong>ON or AFTER</strong> date.</p>
+                                            <p><strong>Above</strong> groups: Born <strong>ON or BEFORE</strong> date.</p>
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </div>
                                   <div className="flex flex-col sm:flex-row gap-3">
                                     <Input
                                       type="date"

@@ -128,6 +128,14 @@ const GroupList = () => {
                       </span>
                     )}
                   </TableHead>
+                  <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("ageType")}>
+                    Age Condition
+                    {sortBy === "ageType" && (
+                      <span className="ml-2 inline-block">
+                        {sortOrder === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </span>
+                    )}
+                  </TableHead>
                   <TableHead className="w-auto cursor-pointer" onClick={() => handleSort("age")}>
                     Age Limit
                     {sortBy === "age" && (
@@ -141,23 +149,30 @@ const GroupList = () => {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading groups...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.groups?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
-                      No groups found.
-                    </TableCell>
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center">
+                        No groups found.
+                      </TableCell>
+                    </TableRow>
                   </TableRow>
                 ) : (
                   data?.groups?.map((group: any) => (
                     <TableRow key={group.id}>
                       <TableCell>{group.groupName}</TableCell>
                       <TableCell>{group.gender}</TableCell>
-                      <TableCell>{group.age}</TableCell>
+                      <TableCell>
+                        {group.ageType || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {group.age}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
