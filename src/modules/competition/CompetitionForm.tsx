@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Services and utilities
-import { post, put, get } from "@/services/apiService";
+import { post, put, get, postupload, putupload } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
 
 // Define interfaces for API responses
@@ -46,6 +46,7 @@ interface CompetitionData {
   rules?: string; // Competition rules as rich text HTML
   createdAt: string;
   updatedAt: string;
+  banner?: string; // Path to banner image
 }
 
 interface CompetitionGroup {
@@ -96,6 +97,7 @@ const competitionFormSchema = z.object({
   rules: z.string().optional(),
   weight: z.string().max(255, "Weight must not exceed 255 characters").optional(),
   address: z.string().optional(),
+  banner: z.any().optional(), // File object or string (for existing)
 });
 
 // Helper to extract error message from API error
@@ -146,8 +148,51 @@ const CompetitionForm = ({
       rules: "",
       weight: "",
       address: "",
+      banner: undefined,
     },
   });
+
+  // Upload URL resolver (same pattern as PlayerForm)
+  const backendBaseUrl = (import.meta.env.VITE_BACKEND_URL || "http://localhost:3000").replace(/\/$/, "");
+  const resolveUploadUrl = (p?: string | null) => {
+    const s = String(p || "").trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s)) return s;
+    const normalized = s.replace(/\\/g, "/").replace(/^\/+/, "");
+    return `${backendBaseUrl}/${normalized}`;
+  };
+
+  // Banner State
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [existingBanner, setExistingBanner] = useState<string | null>(null);
+
+  // Handle Banner Select
+  const handleBannerSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.match(/^image\/(jpeg|jpg|png)$/)) {
+        toast.error("Invalid file type. Please upload a JPEG or PNG image.");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        toast.error("File size too large. Maximum size is 5MB.");
+        return;
+      }
+
+      setBannerFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setBannerPreview(objectUrl);
+    }
+  };
+
+  const removeBanner = () => {
+    setBannerFile(null);
+    setBannerPreview(null);
+    // If we want to support removing existing banner, we might need a separate flag or logic
+    // For now, just clearing the new selection or hiding the existing preview if we imply replacement
+    // If removing existing, we might need to send a flag to backend
+  };
 
   // Function to calculate age category based on eligibility date
   const calculateAgeCategory = (eligibilityDate: string) => {
@@ -312,6 +357,12 @@ const CompetitionForm = ({
       // ageEligibilityDate removed from top level
       form.setValue("weight", competitionData.weight || "");
       form.setValue("address", competitionData.address || "");
+
+      if (competitionData.banner) {
+        const imageUrl = resolveUploadUrl(competitionData.banner);
+        setExistingBanner(imageUrl);
+        setBannerPreview(imageUrl);
+      }
     }
   }, [competitionData, mode, form]);
 
@@ -330,7 +381,32 @@ const CompetitionForm = ({
   // Mutation for creating a competition
   const createCompetitionMutation = useMutation({
     mutationFn: (data: CompetitionFormInputs) => {
-      return post("/competitions", data);
+      // Create FormData
+      const formData = new FormData();
+      formData.append("competitionName", data.competitionName);
+      formData.append("maxPlayers", data.maxPlayers.toString());
+      formData.append("fromDate", data.fromDate);
+      formData.append("toDate", data.toDate);
+      formData.append("lastEntryDate", data.lastEntryDate);
+
+      // Groups and Clubs as JSON strings or individual items?
+      // Controller handles JSON parsing or arrays. Let's send valid JSON strings for complex arrays.
+      formData.append("groups", JSON.stringify(data.groups));
+
+      if (data.clubs) {
+        formData.append("clubs", JSON.stringify(data.clubs));
+      }
+
+      if (data.weight) formData.append("weight", data.weight);
+      if (data.address) formData.append("address", data.address);
+      if (data.rules) formData.append("rules", data.rules);
+
+      if (bannerFile) {
+        formData.append("banner", bannerFile);
+      }
+
+      // Use postupload for multipart/form-data
+      return postupload("/competitions", formData);
     },
     onSuccess: () => {
       toast.success("Competition created successfully");
@@ -359,7 +435,25 @@ const CompetitionForm = ({
   // Mutation for updating a competition
   const updateCompetitionMutation = useMutation({
     mutationFn: (data: CompetitionFormInputs) => {
-      return put(`/competitions/${competitionId}`, data);
+      const formData = new FormData();
+      if (data.competitionName) formData.append("competitionName", data.competitionName);
+      if (data.maxPlayers) formData.append("maxPlayers", data.maxPlayers.toString());
+      if (data.fromDate) formData.append("fromDate", data.fromDate);
+      if (data.toDate) formData.append("toDate", data.toDate);
+      if (data.lastEntryDate) formData.append("lastEntryDate", data.lastEntryDate);
+
+      if (data.groups) formData.append("groups", JSON.stringify(data.groups));
+      if (data.clubs) formData.append("clubs", JSON.stringify(data.clubs));
+
+      if (data.weight !== undefined) formData.append("weight", data.weight);
+      if (data.address !== undefined) formData.append("address", data.address);
+      if (data.rules !== undefined) formData.append("rules", data.rules);
+
+      if (bannerFile) {
+        formData.append("banner", bannerFile);
+      }
+
+      return putupload(`/competitions/${competitionId}`, formData);
     },
     onSuccess: () => {
       toast.success("Competition updated successfully");
@@ -576,6 +670,54 @@ const CompetitionForm = ({
                     </FormItem>
                   )}
                 />
+              </div>
+
+
+
+              {/* Banner Upload Field */}
+              <div className="space-y-2">
+                <FormLabel>Competition Banner</FormLabel>
+                <div className="flex flex-col gap-4 items-start sm:flex-row">
+                  <div className="relative w-full max-w-sm aspect-video rounded-md border border-dashed flex items-center justify-center bg-muted/20 overflow-hidden">
+                    {bannerPreview ? (
+                      <img src={bannerPreview} alt="Banner Preview" className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://placehold.co/600x400?text=No+Banner";
+                        }}
+                      />
+                    ) : (
+                      <div className="text-muted-foreground text-sm flex flex-col items-center">
+                        <span>No banner selected</span>
+                      </div>
+                    )}
+
+                    {/* Remove button */}
+                    {(bannerPreview) && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-6 w-6 rounded-full"
+                        onClick={removeBanner}
+                      >
+                        <span className="sr-only">Remove</span>
+                        <span aria-hidden="true">×</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png"
+                      onChange={handleBannerSelect}
+                      className="max-w-[250px] cursor-pointer"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Supported formats: JPG, PNG. Max size: 5MB.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -893,7 +1035,7 @@ const CompetitionForm = ({
           </Form>
         </CardContent>
       </Card>
-    </div>
+    </div >
   );
 };
 
