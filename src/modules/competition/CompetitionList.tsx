@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get, del, post, put } from "@/services/apiService";
+import { formatDate } from "@/lib/formatter";
 
 const CompetitionList = () => {
   const [page, setPage] = useState(1);
@@ -324,16 +325,7 @@ const CompetitionList = () => {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch (error) {
-      return dateString;
-    }
-  };
+
 
   // Handle error
   if (isError) {

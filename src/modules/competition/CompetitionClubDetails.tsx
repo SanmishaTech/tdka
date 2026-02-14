@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { LoaderCircle, ArrowLeft, MapPin, Phone, Mail, Calendar, Users, Trophy } from "lucide-react";
+import { LoaderCircle, ArrowLeft, MapPin, Phone, Mail, Calendar, Users, Trophy, CheckCircle2, Download } from "lucide-react";
 import { get } from "@/services/apiService";
+import { formatDate } from "@/lib/formatter";
 
 const CompetitionClubDetails = () => {
   const { competitionId, clubId } = useParams<{ competitionId: string; clubId: string }>();
   const navigate = useNavigate();
+  // State for filtering by group
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
   // Determine user role for role-based navigation/UI
   let userRole: string = 'admin';
@@ -67,19 +71,7 @@ const CompetitionClubDetails = () => {
   });
 
   // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    } catch (error) {
-      return dateString;
-    }
-  };
+
 
   const getPlayerProfileUrl = (profileImage?: string | null) => {
     if (!profileImage) return null;
@@ -101,6 +93,36 @@ const CompetitionClubDetails = () => {
       </div>
     );
   }
+
+  const handleDownload = async (groupId: number) => {
+    try {
+      const apiService = await import("@/services/apiService"); // Dynamically import apiService
+      const response: any = await apiService.get(
+        `/competitions/${competitionId}/clubs/${clubId}/pdf?groupId=${groupId}`,
+        undefined,
+        { responseType: 'blob' }
+      );
+
+      // apiService.get returns axios response when responseType is 'blob'
+      const blob: Blob = response?.data || response;
+      const url = window.URL.createObjectURL(blob);
+      const opened = window.open(url, '_blank');
+      if (!opened) {
+        // Fallback: try direct download if popup blocked
+        const link = document.createElement('a');
+        link.href = url;
+        // Find group name for filename
+        const group = competition?.groups?.find((g: any) => g.id === groupId);
+        const groupName = group ? group.groupName.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'group';
+        link.setAttribute('download', `competition_${competitionId}_club_${clubId}_${groupName}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode?.removeChild(link);
+      }
+    } catch (error) {
+      console.error("Failed to open PDF", error);
+    }
+  };
 
   if (isLoadingCompetition || isLoadingClub || isLoadingPlayers) {
     return (
@@ -183,14 +205,48 @@ const CompetitionClubDetails = () => {
                   </div>
                   <div className="grid grid-cols-1 gap-2">
                     {competition.groups.map((group: any) => (
-                      <div key={group.id} className="text-sm border rounded p-2 bg-muted/20">
-                        <div className="font-medium">{group.groupName}</div>
-                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Cutoff: {group.ageEligibilityDate ? new Date(group.ageEligibilityDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
+                      <div
+                        key={group.id}
+                        className={`text-sm border rounded p-2 cursor-pointer transition-colors ${selectedGroupId === group.id
+                          ? "bg-primary/10 border-primary ring-1 ring-primary"
+                          : "bg-muted/20 hover:bg-muted/40"
+                          }`}
+                        onClick={() => setSelectedGroupId(selectedGroupId === group.id ? null : group.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">{group.groupName}</div>
+                          {selectedGroupId === group.id && <CheckCircle2 className="h-3 w-3 text-primary" />}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Cutoff: {group.ageEligibilityDate ? formatDate(group.ageEligibilityDate) : 'N/A'}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 ml-2 hover:bg-primary/20"
+                            title="Download Group PDF"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(group.id);
+                            }}
+                          >
+                            <Download className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     ))}
+                    {selectedGroupId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-xs h-7 mt-1"
+                        onClick={() => setSelectedGroupId(null)}
+                      >
+                        Clear Filter
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -252,7 +308,11 @@ const CompetitionClubDetails = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Registered Players ({registeredPlayers?.registrations?.length || 0})
+            Registered Players ({
+              selectedGroupId
+                ? `${registeredPlayers?.registrations?.filter((r: any) => r.groupId == selectedGroupId).length || 0} / `
+                : ""
+            }{registeredPlayers?.registrations?.length || 0})
           </CardTitle>
           <CardDescription>
             Players from {club?.clubName} registered for {competition?.competitionName}
@@ -280,51 +340,53 @@ const CompetitionClubDetails = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {registeredPlayers.registrations.map((registration: any) => (
-                    <TableRow key={registration.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0">
-                            {registration.player.profileImage ? (
-                              <img
-                                src={getPlayerProfileUrl(registration.player.profileImage) || ""}
-                                alt={registration.player.name}
-                                className="w-8 h-8 rounded-full object-cover border"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src =
-                                    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"%3E%3C/path%3E%3Ccircle cx="12" cy="7" r="4"%3E%3C/circle%3E%3C/svg%3E';
-                                }}
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                  <circle cx={12} cy={7} r={4} />
-                                </svg>
-                              </div>
-                            )}
+                  {registeredPlayers.registrations
+                    .filter((registration: any) => !selectedGroupId || registration.groupId == selectedGroupId)
+                    .map((registration: any) => (
+                      <TableRow key={registration.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-shrink-0">
+                              {registration.player.profileImage ? (
+                                <img
+                                  src={getPlayerProfileUrl(registration.player.profileImage) || ""}
+                                  alt={registration.player.name}
+                                  className="w-8 h-8 rounded-full object-cover border"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src =
+                                      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"%3E%3C/path%3E%3Ccircle cx="12" cy="7" r="4"%3E%3C/circle%3E%3C/svg%3E';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx={12} cy={7} r={4} />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <div>{registration.player.name}</div>
                           </div>
-                          <div>{registration.player.name}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{registration.player.uniqueIdNumber}</TableCell>
-                      <TableCell>{registration.player.position || 'N/A'}</TableCell>
-                      <TableCell>{registration.player.age} years</TableCell>
-                      <TableCell>{registration.player.mobile || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Badge variant={registration.player.aadharVerified ? 'default' : 'secondary'}>
-                          {registration.player.aadharVerified ? 'Verified' : 'Not Verified'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(registration.registrationDate)}</TableCell>
-                      <TableCell>
-                        <Badge variant={registration.status === 'registered' ? 'default' : 'secondary'}>
-                          {registration.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>{registration.player.uniqueIdNumber}</TableCell>
+                        <TableCell>{registration.player.position || 'N/A'}</TableCell>
+                        <TableCell>{registration.player.age} years</TableCell>
+                        <TableCell>{registration.player.mobile || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge variant={registration.player.aadharVerified ? 'default' : 'secondary'}>
+                            {registration.player.aadharVerified ? 'Verified' : 'Not Verified'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(registration.registrationDate)}</TableCell>
+                        <TableCell>
+                          <Badge variant={registration.status === 'registered' ? 'default' : 'secondary'}>
+                            {registration.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </div>

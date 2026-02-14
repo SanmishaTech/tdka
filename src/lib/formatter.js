@@ -17,38 +17,41 @@ export function formatCurrency(amount) {
 }
 
 /**
- * Formats a date as a localized string.
+ * Formats a date as dd/mm/yyyy.
  * @param {Date|string} date - The date to format.
- * @returns {string} - The formatted date string.
+ * @returns {string} - The formatted date string in dd/mm/yyyy format.
  */
 export function formatDate(date) {
-  const locale = import.meta.env.VITE_LOCALE || "en-US";
+  if (!date) return "";
 
   const parsedDate = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(locale, {
+
+  // Use en-GB locale to get dd/mm/yyyy format
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    month: "long",
-    day: "numeric",
   }).format(parsedDate);
 }
 
 /**
- * Formats a date and time as a localized string.
+ * Formats a date and time as dd/mm/yyyy HH:MM.
  * @param {Date|string} dateTime - The date and time to format.
- * @returns {string} - The formatted date and time string.
+ * @returns {string} - The formatted date and time string in dd/mm/yyyy HH:MM format.
  */
 export function formatDateTime(dateTime) {
-  const locale = import.meta.env.VITE_LOCALE || "en-US";
+  if (!dateTime) return "";
 
   const parsedDateTime =
     typeof dateTime === "string" ? new Date(dateTime) : dateTime;
-  return new Intl.DateTimeFormat(locale, {
+
+  // Use en-GB locale to get dd/mm/yyyy format with time
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    month: "long",
-    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    // second: '2-digit',
   }).format(parsedDateTime);
 }
 

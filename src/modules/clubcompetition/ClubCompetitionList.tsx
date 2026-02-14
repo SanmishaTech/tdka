@@ -28,6 +28,7 @@ import {
 
 import CustomPagination from "@/components/common/custom-pagination";
 import { get } from "@/services/apiService";
+import { formatDate } from "@/lib/formatter";
 
 const ClubCompetitionList = () => {
     const [page, setPage] = useState(1);
@@ -82,15 +83,7 @@ const ClubCompetitionList = () => {
     };
 
     // Format date for display
-    const formatDate = (dateString: string) => {
-        if (!dateString) return "";
-        try {
-            const date = new Date(dateString);
-            return date.toLocaleDateString();
-        } catch (error) {
-            return dateString;
-        }
-    };
+
 
     // Handle error
     if (isError) {

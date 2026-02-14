@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import CustomPagination from "@/components/common/custom-pagination";
 import { get } from "@/services/apiService";
-import { formatCurrency } from "@/lib/formatter";
+import { formatCurrency, formatDate } from "@/lib/formatter";
 
 // Interfaces
 interface Party {
@@ -89,12 +89,12 @@ const Dashboard = () => {
         sortBy: "entryDate",
         sortOrder: "desc",
       };
-      
+
       if (selectedPartyId) {
         // First get loans for the selected party
         const loansResponse = await get("/loans", { partyId: selectedPartyId });
         const loanIds = loansResponse.loans?.map((loan: any) => loan.id) || [];
-        
+
         if (loanIds.length === 0) {
           return {
             entries: [],
@@ -103,13 +103,13 @@ const Dashboard = () => {
             currentPage: page,
           };
         }
-        
+
         // Get entries for these loans
         const entriesResponse = await get("/entries", {
           ...params,
           loanIds: loanIds.join(',')
         });
-        
+
         return {
           entries: entriesResponse.entries || [],
           totalEntries: entriesResponse.totalEntries || 0,
@@ -117,7 +117,7 @@ const Dashboard = () => {
           currentPage: page,
         };
       }
-      
+
       // If no party selected, return empty
       return {
         entries: [],
@@ -160,28 +160,28 @@ const Dashboard = () => {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle>Loan Entries 
-            {selectedPartyId && (
-              <div className="mt-2 space-y-1">
-                <p className="text-sm text-muted-foreground">
-                  Showing entries for: <span className="font-medium">
-                    {partiesData?.parties?.find((p: Party) => p.id.toString() === selectedPartyId)?.partyName || 'Selected Party'}
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Total entries: <span className="font-medium">
-                    {entriesData?.totalEntries || 0}
-                  </span>
-                  {entriesData?.totalEntries && entriesData.totalEntries > limit && (
-                    <span> (showing {limit} per page)</span>
-                  )}
-                </p>
-              </div>
-            )}
+            <CardTitle>Loan Entries
+              {selectedPartyId && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Showing entries for: <span className="font-medium">
+                      {partiesData?.parties?.find((p: Party) => p.id.toString() === selectedPartyId)?.partyName || 'Selected Party'}
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Total entries: <span className="font-medium">
+                      {entriesData?.totalEntries || 0}
+                    </span>
+                    {entriesData?.totalEntries && entriesData.totalEntries > limit && (
+                      <span> (showing {limit} per page)</span>
+                    )}
+                  </p>
+                </div>
+              )}
             </CardTitle>
-          
+
             <div className="flex flex-col gap-2">
-               <Select value={selectedPartyId} onValueChange={handlePartyChange}>
+              <Select value={selectedPartyId} onValueChange={handlePartyChange}>
                 <SelectTrigger className="w-full sm:w-80">
                   <SelectValue placeholder="Choose a party to view entries" />
                 </SelectTrigger>
@@ -205,7 +205,7 @@ const Dashboard = () => {
               </Select>
             </div>
           </div>
-         
+
         </CardHeader>
         <CardContent>
           {!selectedPartyId ? (
@@ -243,25 +243,25 @@ const Dashboard = () => {
                       entriesData?.entries?.map((entry) => (
                         <TableRow key={entry.id}>
                           <TableCell>
-                            {new Date(entry.entryDate).toLocaleDateString()}
+                            {formatDate(entry.entryDate)}
                           </TableCell>
                           <TableCell>{entry.loanId}</TableCell>
                           <TableCell>{formatCurrency(entry.balanceAmount)}</TableCell>
                           <TableCell>{formatCurrency(entry.interestAmount)}</TableCell>
                           <TableCell>
-                            {entry.receivedDate 
-                              ? new Date(entry.receivedDate).toLocaleDateString()
+                            {entry.receivedDate
+                              ? formatDate(entry.receivedDate)
                               : "-"
                             }
                           </TableCell>
                           <TableCell>
-                            {entry.receivedAmount 
+                            {entry.receivedAmount
                               ? formatCurrency(entry.receivedAmount)
                               : "-"
                             }
                           </TableCell>
                           <TableCell>
-                            {entry.receivedInterest 
+                            {entry.receivedInterest
                               ? formatCurrency(entry.receivedInterest)
                               : "-"
                             }

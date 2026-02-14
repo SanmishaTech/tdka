@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
+import { formatDate } from "@/lib/formatter";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,19 +52,8 @@ const CompetitionDetails = () => {
   });
 
   // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    } catch (error) {
-      return dateString;
-    }
-  };
+
+
 
   // Handle view club competition details
   const handleViewClubDetails = (clubId: number) => {
@@ -296,17 +286,19 @@ const CompetitionDetails = () => {
                         <span className="font-medium">Born On/After:</span>
                         <span>
                           {group.ageEligibilityDate
-                            ? new Date(group.ageEligibilityDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                            ? formatDate(group.ageEligibilityDate)
                             : 'N/A'}
                         </span>
                       </div>
-                      {group.ageEligibilityDate && (
-                        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground bg-blue-50/50 p-1.5 rounded border border-blue-100">
-                          <Info className="h-3 w-3 text-blue-500" />
-                          <span className="font-medium text-blue-700">Max Age:</span>
-                          <span className="text-blue-600">~{getApproxAge(group.ageEligibilityDate)} years</span>
-                        </div>
-                      )}
+                      {
+                        group.ageEligibilityDate && (
+                          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground bg-blue-50/50 p-1.5 rounded border border-blue-100">
+                            <Info className="h-3 w-3 text-blue-500" />
+                            <span className="font-medium text-blue-700">Max Age:</span>
+                            <span className="text-blue-600">~{getApproxAge(group.ageEligibilityDate)} years</span>
+                          </div>
+                        )
+                      }
                     </div>
                   ))}
                 </div>
@@ -317,154 +309,162 @@ const CompetitionDetails = () => {
       </Card>
 
       {/* Competition Rules */}
-      {competition?.rules && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Competition Rules</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: competition.rules }}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {
+        competition?.rules && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Competition Rules</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: competition.rules }}
+              />
+            </CardContent>
+          </Card>
+        )
+      }
 
       {/* Participating Clubs */}
-      {competition?.clubs && competition.clubs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Participating Clubs ({competition.clubs.length})
-            </CardTitle>
-            <CardDescription>
-              Clubs registered for this competition
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Club Name</TableHead>
-                    <TableHead>Affiliation Number</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>State</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Players</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {competition.clubs.map((club: any) => (
-                    <TableRow key={club.id}>
-                      <TableCell className="font-medium">{club.clubName}</TableCell>
-                      <TableCell>{club.affiliationNumber}</TableCell>
-                      <TableCell>{club.city}</TableCell>
-                      <TableCell>{club.region?.regionName || 'N/A'}</TableCell>
-                      <TableCell>{club.mobile}</TableCell>
-                      <TableCell>
-                        <Badge variant="default">Participating</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-medium">
-                          {club.registeredPlayersCount || 0}/{competition?.maxPlayers}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewClubDetails(club.id)}
-                            title="View Club Details"
-                          >
-                            <Info className="h-4 w-4" />
-                            <span className="sr-only">View Details</span>
-                          </Button>
-
-                          {(isAdmin || isClubAdmin) && (
+      {
+        competition?.clubs && competition.clubs.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Participating Clubs ({competition.clubs.length})
+              </CardTitle>
+              <CardDescription>
+                Clubs registered for this competition
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Club Name</TableHead>
+                      <TableHead>Affiliation Number</TableHead>
+                      <TableHead>City</TableHead>
+                      <TableHead>State</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Players</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {competition.clubs.map((club: any) => (
+                      <TableRow key={club.id}>
+                        <TableCell className="font-medium">{club.clubName}</TableCell>
+                        <TableCell>{club.affiliationNumber}</TableCell>
+                        <TableCell>{club.city}</TableCell>
+                        <TableCell>{club.region?.regionName || 'N/A'}</TableCell>
+                        <TableCell>{club.mobile}</TableCell>
+                        <TableCell>
+                          <Badge variant="default">Participating</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm font-medium">
+                            {club.registeredPlayersCount || 0}/{competition?.maxPlayers}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDownloadClubPDF(club.id, club.clubName)}
-                              title="Download Club Details PDF"
+                              onClick={() => handleViewClubDetails(club.id)}
+                              title="View Club Details"
                             >
-                              <Download className="h-4 w-4" />
-                              <span className="sr-only">Download PDF</span>
+                              <Info className="h-4 w-4" />
+                              <span className="sr-only">View Details</span>
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
+                            {(isAdmin || isClubAdmin) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDownloadClubPDF(club.id, club.clubName)}
+                                title="Download Club Details PDF"
+                              >
+                                <Download className="h-4 w-4" />
+                                <span className="sr-only">Download PDF</span>
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      }
 
       {/* No Clubs Message */}
-      {competition?.clubs && competition.clubs.length === 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Participating Clubs
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8">
-              <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No clubs have registered for this competition yet.</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {
+        competition?.clubs && competition.clubs.length === 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Participating Clubs
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No clubs have registered for this competition yet.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      }
 
       {/* Competition Statistics */}
-      {competition?.registrations && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Registration Statistics
-            </CardTitle>
-            <CardDescription>
-              Overview of registrations for this competition
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center p-4 border rounded-lg">
-                <div className="text-2xl font-bold text-primary">
-                  {competition.registrations.length}
+      {
+        competition?.registrations && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Registration Statistics
+              </CardTitle>
+              <CardDescription>
+                Overview of registrations for this competition
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-primary">
+                    {competition.registrations.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total Registrations</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Total Registrations</div>
-              </div>
 
-              <div className="text-center p-4 border rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
-                  {competition.clubs?.length || 0}
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">
+                    {competition.clubs?.length || 0}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Participating Clubs</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Participating Clubs</div>
-              </div>
 
-              <div className="text-center p-4 border rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">
-                  {competition.maxPlayers}
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {competition.maxPlayers}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Max Players Allowed</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Max Players Allowed</div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+            </CardContent>
+          </Card>
+        )
+      }
+    </div >
   );
 };
 

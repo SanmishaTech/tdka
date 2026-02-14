@@ -79,6 +79,7 @@ const PlayerList = () => {
   const [aadharVerified, setAadharVerified] = useState<boolean | undefined>(undefined);
   const [clubId, setClubId] = useState<string>("");
   const [groupId, setGroupId] = useState<string>("");
+  const [regionId, setRegionId] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
   const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
@@ -109,7 +110,8 @@ const PlayerList = () => {
     (isSuspended !== undefined ? 1 : 0) +
     (aadharVerified !== undefined ? 1 : 0) +
     (isAdmin && clubId ? 1 : 0) +
-    (groupId ? 1 : 0);
+    (groupId ? 1 : 0) +
+    (regionId ? 1 : 0);
 
   // Fetch players
   const {
@@ -118,7 +120,7 @@ const PlayerList = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["players", page, limit, search, sortBy, sortOrder, isSuspended, aadharVerified, clubId, groupId, isAdmin],
+    queryKey: ["players", page, limit, search, sortBy, sortOrder, isSuspended, aadharVerified, clubId, groupId, regionId, isAdmin],
     queryFn: () =>
       get("/players", {
         page,
@@ -128,6 +130,7 @@ const PlayerList = () => {
         sortOrder,
         clubId: isAdmin && clubId ? clubId : undefined,
         groupId: groupId ? groupId : undefined,
+        regionId: regionId ? regionId : undefined,
         isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
         aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
       }),
@@ -159,6 +162,21 @@ const PlayerList = () => {
       });
       return response.groups || response;
     },
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: regionsData, isLoading: isLoadingRegions } = useQuery({
+    queryKey: ["regions", "all"],
+    queryFn: async () => {
+      const response = await get("/regions", {
+        page: 1,
+        limit: 5000,
+        sortBy: "regionName",
+        sortOrder: "asc",
+      });
+      return response.regions || response;
+    },
+    enabled: isAdmin,
     refetchOnWindowFocus: false,
   });
 
@@ -233,6 +251,7 @@ const PlayerList = () => {
       setAadharVerified(undefined);
       setClubId("");
       setGroupId("");
+      setRegionId("");
     }
     setPage(1); // Reset to first page when filters change
   };
@@ -303,6 +322,7 @@ const PlayerList = () => {
           sortOrder,
           clubId: isAdmin && clubId ? clubId : undefined,
           groupId: groupId ? groupId : undefined,
+          regionId: regionId ? regionId : undefined,
           isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
           aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
         },
@@ -355,6 +375,7 @@ const PlayerList = () => {
           sortOrder,
           clubId: isAdmin && clubId ? clubId : undefined,
           groupId: groupId ? groupId : undefined,
+          regionId: regionId ? regionId : undefined,
           isSuspended: isSuspended !== undefined ? isSuspended.toString() : undefined,
           aadharVerified: aadharVerified !== undefined ? aadharVerified.toString() : undefined,
         },
@@ -437,7 +458,7 @@ const PlayerList = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => handleFilterChange('all')} className="flex items-center justify-between">
                   <span>All Players</span>
-                  {isSuspended === undefined && aadharVerified === undefined && (!isAdmin || !clubId) && !groupId && (
+                  {isSuspended === undefined && aadharVerified === undefined && (!isAdmin || !clubId) && !groupId && !regionId && (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   )}
                 </DropdownMenuItem>
@@ -445,58 +466,52 @@ const PlayerList = () => {
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Club</DropdownMenuLabel>
+                    <DropdownMenuLabel>Region</DropdownMenuLabel>
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <span className="truncate">
-                          {clubId
-                            ? (clubsData || []).find((c: any) => String(c.id) === String(clubId))?.clubName || "Selected club"
-                            : "All Clubs"}
+                          {regionId
+                            ? (regionsData || []).find((r: any) => String(r.id) === String(regionId))?.regionName || "Selected region"
+                            : "All Regions"}
                         </span>
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="p-0 w-89">
                         <Command className="w-89">
-                          <CommandInput placeholder={isLoadingClubs ? "Loading clubs..." : "Search club..."} />
+                          <CommandInput placeholder={isLoadingRegions ? "Loading regions..." : "Search region..."} />
                           <CommandList className="max-h-[260px]">
-                            <CommandEmpty>No club found.</CommandEmpty>
+                            <CommandEmpty>No region found.</CommandEmpty>
                             <CommandGroup>
                               <CommandItem
-                                value="All Clubs"
+                                value="All Regions"
                                 onSelect={() => {
-                                  setClubId("");
+                                  setRegionId("");
                                   setPage(1);
                                 }}
                               >
-                                <Check className={cn("mr-2 h-4 w-4", !clubId ? "opacity-100" : "opacity-0")} />
-                                All Clubs
+                                <Check className={cn("mr-2 h-4 w-4", !regionId ? "opacity-100" : "opacity-0")} />
+                                All Regions
                               </CommandItem>
-                              {(clubsData || []).map((club: any) => {
-                                const placeName = club?.place?.placeName;
-                                const regionName = club?.place?.region?.regionName;
-                                const rightText = [regionName, placeName].filter(Boolean).join(" • ");
-
-                                return (
-                                  <CommandItem
-                                    key={club.id}
-                                    value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
-                                    onSelect={() => {
-                                      setClubId(String(club.id));
-                                      setPage(1);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        String(club.id) === String(clubId) ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <span className="flex-1 truncate">{club.clubName}</span>
-                                    {rightText ? (
-                                      <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
-                                    ) : null}
-                                  </CommandItem>
-                                );
-                              })}
+                              {(regionsData || []).map((region: any) => (
+                                <CommandItem
+                                  key={region.id}
+                                  value={`${region.regionName} ${region.taluka?.talukaName || ""}`.trim()}
+                                  onSelect={() => {
+                                    setRegionId(String(region.id));
+                                    setPage(1);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      String(region.id) === String(regionId) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <span className="flex-1 truncate">{region.regionName}</span>
+                                  {region.taluka?.talukaName ? (
+                                    <span className="ml-2 text-xs text-muted-foreground truncate">{region.taluka.talukaName}</span>
+                                  ) : null}
+                                </CommandItem>
+                              ))}
                             </CommandGroup>
                           </CommandList>
                         </Command>
@@ -504,6 +519,64 @@ const PlayerList = () => {
                     </DropdownMenuSub>
                   </>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Club</DropdownMenuLabel>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <span className="truncate">
+                      {clubId
+                        ? (clubsData || []).find((c: any) => String(c.id) === String(clubId))?.clubName || "Selected club"
+                        : "All Clubs"}
+                    </span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="p-0 w-89">
+                    <Command className="w-89">
+                      <CommandInput placeholder={isLoadingClubs ? "Loading clubs..." : "Search club..."} />
+                      <CommandList className="max-h-[260px]">
+                        <CommandEmpty>No club found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="All Clubs"
+                            onSelect={() => {
+                              setClubId("");
+                              setPage(1);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", !clubId ? "opacity-100" : "opacity-0")} />
+                            All Clubs
+                          </CommandItem>
+                          {(clubsData || []).map((club: any) => {
+                            const placeName = club?.place?.placeName;
+                            const regionName = club?.place?.region?.regionName;
+                            const rightText = [regionName, placeName].filter(Boolean).join(" • ");
+
+                            return (
+                              <CommandItem
+                                key={club.id}
+                                value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
+                                onSelect={() => {
+                                  setClubId(String(club.id));
+                                  setPage(1);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    String(club.id) === String(clubId) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <span className="flex-1 truncate">{club.clubName}</span>
+                                {rightText ? (
+                                  <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
+                                ) : null}
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Group</DropdownMenuLabel>
                 <DropdownMenuSub>
@@ -655,9 +728,23 @@ const PlayerList = () => {
             </Button>
           </div>
           {/* Active Filters Display */}
-          {(isSuspended !== undefined || aadharVerified !== undefined || (isAdmin && clubId) || groupId) && (
+          {(isSuspended !== undefined || aadharVerified !== undefined || (isAdmin && clubId) || groupId || regionId) && (
             <div className="flex flex-wrap gap-2 mb-4">
               <div className="text-sm text-muted-foreground">Active filters:</div>
+              {regionId && (
+                <Badge variant="outline" className="flex items-center gap-1">
+                  Region: {(regionsData || []).find((r: any) => String(r.id) === String(regionId))?.regionName || regionId}
+                  <button
+                    onClick={() => {
+                      setRegionId("");
+                      setPage(1);
+                    }}
+                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                  >
+                    <XCircle className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
               {isAdmin && clubId && (
                 <Badge variant="outline" className="flex items-center gap-1">
                   Club: {(clubsData || []).find((c: any) => String(c.id) === String(clubId))?.clubName || clubId}
@@ -707,6 +794,7 @@ const PlayerList = () => {
                   setAadharVerified(undefined);
                   setClubId("");
                   setGroupId("");
+                  setRegionId("");
                   setPage(1);
                 }}
               >

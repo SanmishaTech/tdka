@@ -10,14 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -26,7 +20,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -34,9 +27,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { LoaderCircle, ArrowLeft, Calendar, Users, UserPlus, Plus, X, CheckCircle2, Crown, Info } from "lucide-react";
+import { LoaderCircle, ArrowLeft, Calendar, Users, Plus, X, CheckCircle2, Info, UserPlus, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { get, post, del, put } from "@/services/apiService";
+import { get, post, put, del } from "@/services/apiService";
+import { formatDate } from "@/lib/formatter";
 import { Input } from "@/components/ui/input";
 
 const ClubCompetitionDetails = () => {
@@ -45,8 +39,10 @@ const ClubCompetitionDetails = () => {
   const queryClient = useQueryClient();
   const [showAddPlayers, setShowAddPlayers] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<number[]>([]);
-  const [managerName, setManagerName] = useState("");
-  const [coachName, setCoachName] = useState("");
+  const [managerNames, setManagerNames] = useState<Record<number, string>>({});
+  const [coachNames, setCoachNames] = useState<Record<number, string>>({});
+  const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
+  const [captainId, setCaptainId] = useState<number | null>(null);
 
   // Get clubId from localStorage
   const userStr = localStorage.getItem("user");
@@ -65,34 +61,35 @@ const ClubCompetitionDetails = () => {
     enabled: !!id,
   });
 
-  // Fetch eligible players from club
+  // Fetch eligible players from club (filtered for the active group)
   const {
     data: eligiblePlayers,
     isLoading: isLoadingPlayers,
   } = useQuery({
-    queryKey: ["eligibleplayers", id],
-    queryFn: () => get(`/competitions/${id}/eligible-players`),
-    enabled: !!id && showAddPlayers,
+    queryKey: ["eligibleplayers", id, activeGroupId],
+    queryFn: () => get(`/competitions/${id}/eligible-players?groupId=${activeGroupId}`),
+    enabled: !!id && showAddPlayers && !!activeGroupId,
   });
 
   // Fetch registered players for this competition
   const {
     data: registeredPlayers,
-    isLoading: isLoadingRegistered,
   } = useQuery({
     queryKey: ["registeredplayers", id],
     queryFn: () => get(`/competitions/${id}/registered-players`),
     enabled: !!id,
   });
 
-  // #clubyers to competition mutation
+  // Add players to competition mutation
   const addPlayersMutation = useMutation({
-    mutationFn: (playerIds: number[]) =>
-      post(`/competitions/${id}/add-players`, { playerIds }),
+    mutationFn: ({ playerIds, groupId, captainId }: { playerIds: number[], groupId: number, captainId?: number | null }) =>
+      post(`/competitions/${id}/add-players`, { playerIds, groupId, captainId }),
     onSuccess: () => {
       toast.success("Players added to competition successfully");
       setShowAddPlayers(false);
       setSelectedPlayers([]);
+      setActiveGroupId(null);
+      setCaptainId(null);
       queryClient.invalidateQueries({ queryKey: ["clubcompetition", id] });
       queryClient.invalidateQueries({ queryKey: ["registeredplayers", id] });
     },
@@ -101,22 +98,12 @@ const ClubCompetitionDetails = () => {
     },
   });
 
-  // Set captain mutation
+  // Set captain mutation (for already-registered players)
   const setCaptainMutation = useMutation({
-    mutationFn: (registrationId: number) => {
-      // Get clubId from localStorage user (for clubadmin/CLUB users)
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
-      const clubId = user?.clubId;
-
-      if (!clubId) {
-        throw new Error("Club ID not found. Please log in again.");
-      }
-
-      return put(`/competitions/${id}/clubs/${clubId}/players/${registrationId}/captain`, {});
-    },
+    mutationFn: ({ registrationId }: { registrationId: number }) =>
+      put(`/competitions/${id}/clubs/${clubId}/players/${registrationId}/captain`, {}),
     onSuccess: () => {
-      toast.success("Captain set successfully");
+      toast.success("Captain updated successfully");
       queryClient.invalidateQueries({ queryKey: ["registeredplayers", id] });
     },
     onError: (error: any) => {
@@ -125,11 +112,10 @@ const ClubCompetitionDetails = () => {
   });
 
   // Remove player from competition mutation
-  const removePlayerMutation = useMutation({
-    mutationFn: (playerId: number) =>
+  const removePlayerFromCompetitionMutation = useMutation({
+    mutationFn: ({ playerId }: { playerId: number }) =>
       del(`/competitions/${id}/players/${playerId}`),
     onSuccess: () => {
-      toast.success("Player removed from competition successfully");
       queryClient.invalidateQueries({ queryKey: ["registeredplayers", id] });
     },
     onError: (error: any) => {
@@ -137,22 +123,13 @@ const ClubCompetitionDetails = () => {
     },
   });
 
-  // Fetch club info (manager and coach names)
-  const {
-    data: clubInfo,
-    isLoading: isLoadingClubInfo,
-  } = useQuery({
-    queryKey: ["clubcompetition-info", id, clubId],
-    queryFn: () => get(`/competitions/${id}/clubs/${clubId}/info`),
-    enabled: !!id && !!clubId,
-  });
 
-  // Update club info mutation
+  // Update club info mutation (per-group)
   const updateClubInfoMutation = useMutation({
-    mutationFn: (data: { managerName: string; coachName: string }) =>
+    mutationFn: (data: { managerName: string; coachName: string; groupId: number }) =>
       put(`/competitions/${id}/clubs/${clubId}/info`, data),
     onSuccess: () => {
-      toast.success("Manager and coach information saved successfully");
+      toast.success(`Manager and coach information saved for group`);
       queryClient.invalidateQueries({ queryKey: ["clubcompetition-info", id, clubId] });
     },
     onError: (error: any) => {
@@ -160,40 +137,44 @@ const ClubCompetitionDetails = () => {
     },
   });
 
-  // Effect to populate manager and coach names when data is fetched
+  // Populate manager and coach names per group from registered players data
   useEffect(() => {
-    if (clubInfo) {
-      setManagerName(clubInfo.managerName || "");
-      setCoachName(clubInfo.coachName || "");
+    if (registeredPlayers?.registrations) {
+      const managers: Record<number, string> = {};
+      const coaches: Record<number, string> = {};
+      for (const reg of registeredPlayers.registrations) {
+        if (reg.groupId && reg.managerName && !managers[reg.groupId]) {
+          managers[reg.groupId] = reg.managerName;
+        }
+        if (reg.groupId && reg.coachName && !coaches[reg.groupId]) {
+          coaches[reg.groupId] = reg.coachName;
+        }
+      }
+      setManagerNames(prev => ({ ...prev, ...managers }));
+      setCoachNames(prev => ({ ...prev, ...coaches }));
     }
-  }, [clubInfo]);
+  }, [registeredPlayers]);
   useEffect(() => {
-    if (showAddPlayers && registeredPlayers?.registrations && eligiblePlayers?.players) {
-      // Extract player IDs from registered players that are also in eligible players
-      const registeredPlayerIds = registeredPlayers.registrations
+    if (showAddPlayers && activeGroupId && registeredPlayers?.registrations && eligiblePlayers?.players) {
+      // Extract player IDs from registered players for this specific group
+      const groupRegistrations = registeredPlayers.registrations
+        .filter((registration: any) => registration.groupId === activeGroupId);
+      const registeredPlayerIds = groupRegistrations
         .map((registration: any) => registration.player.id)
         .filter((playerId: number) =>
           eligiblePlayers.players.some((eligiblePlayer: any) => eligiblePlayer.id === playerId)
         );
 
       setSelectedPlayers(registeredPlayerIds);
+
+      // Pre-populate captain from registered data
+      const captainReg = groupRegistrations.find((reg: any) => reg.captain === true);
+      setCaptainId(captainReg ? captainReg.player.id : null);
     }
-  }, [showAddPlayers, registeredPlayers, eligiblePlayers]);
+  }, [showAddPlayers, activeGroupId, registeredPlayers, eligiblePlayers]);
 
   // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-    } catch (error) {
-      return dateString;
-    }
-  };
+
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: string, refDate: Date = new Date()) => {
@@ -206,51 +187,12 @@ const ClubCompetitionDetails = () => {
     return age;
   };
 
-  const parseEndOfDay = (dateString?: string) => {
-    if (!dateString) return null;
-    const s = String(dateString).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-      const d = new Date(`${s}T23:59:59`);
-      return Number.isNaN(d.getTime()) ? null : d;
-    }
-    const d = new Date(s);
-    return Number.isNaN(d.getTime()) ? null : d;
-  };
 
-  const competitionEnd = parseEndOfDay(competition?.toDate);
-  const isCompetitionOver = competitionEnd ? new Date() > competitionEnd : false;
 
-  const handleDownloadMeritCertificate = async (playerId: number, playerName?: string) => {
-    try {
-      const safeName = String(playerName || `player_${playerId}`).replace(/[^a-z0-9_-]+/gi, "_");
-      const resp: any = await get(
-        `/competitions/${id}/players/${playerId}/merit-certificate`,
-        undefined,
-        { responseType: "blob" }
-      );
 
-      const blob: Blob | undefined = resp?.data;
-      if (!blob) {
-        throw new Error('Empty PDF response');
-      }
-      const pdfBlob = blob.type ? blob : new Blob([blob], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(pdfBlob);
-      const opened = window.open(url, "_blank", "noopener,noreferrer");
-      if (!opened) {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `Merit_Certificate_${safeName}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }
-      window.setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 60_000);
-    } catch (error: any) {
-      toast.error(error?.errors?.message || error?.message || "Failed to download merit certificate");
-    }
-  };
+
+
+
 
   const getPlayerAge = (player: any, refDate: Date = new Date()) => {
     if (!player) return null;
@@ -275,96 +217,7 @@ const ClubCompetitionDetails = () => {
 
   // Check if player is eligible based on age
   // Check if player is eligible based on age or groups and return status + reason
-  const getEligibilityStatus = (player: any) => {
-    // If no DOB, assume eligible (or handle as error if strict)
-    if (!player?.dateOfBirth) return { eligible: true, reason: "" };
 
-    let isEligible = false;
-    let reason = "Does not meet age criteria for any group";
-
-    // Primary eligibility: Check against ALL groups
-    if (competition?.groups && competition.groups.length > 0) {
-      const dobStr = String(player.dateOfBirth);
-      const dob = /^\d{4}-\d{2}-\d{2}$/.test(dobStr) ? new Date(`${dobStr}T00:00:00`) : new Date(dobStr);
-
-      if (isNaN(dob.getTime())) return { eligible: false, reason: "Invalid Date of Birth" };
-
-      // Check if eligible for AT LEAST ONE group
-      const qualifyingGroups = competition.groups.filter((group: any) => {
-        // First check: Does the player belong to this group?
-        // group is a CompetitionGroup (has groupId)
-        // player has groups array (Group objects with id)
-        const playerBelongsToGroup = player.groups?.some((pg: any) => pg.id === group.groupId);
-        if (!playerBelongsToGroup) return false;
-
-        if (!group.ageEligibilityDate) return true; // Open group
-        const cutoff = new Date(`${group.ageEligibilityDate}T00:00:00`);
-        if (isNaN(cutoff.getTime())) return true;
-
-        // Check based on ageType from the group
-        const ageType = group.ageType || group.group?.ageType || "UNDER";
-        if (ageType === "ABOVE") {
-          return dob <= cutoff; // Must be born ON or BEFORE (older)
-        }
-        return dob >= cutoff; // UNDER: Must be born ON or AFTER (younger);
-      });
-
-      if (qualifyingGroups.length > 0) {
-        isEligible = true;
-        reason = "";
-      } else {
-        // Construct a reason
-        // If they don't belong to any groups
-        const matchingGroups = competition.groups.filter((g: any) => player.groups?.some((pg: any) => pg.id === g.groupId));
-
-        if (matchingGroups.length === 0) {
-          isEligible = false;
-          const compGroupIds = competition.groups.map((g: any) => `${g.groupName} (${g.groupId})`).join(", ");
-          reason = `Player does not belong to any of the competition groups. Required: ${compGroupIds}`;
-        } else {
-          isEligible = false;
-          reason = "Born before eligibility date for all qualifying groups";
-        }
-      }
-
-    } else if (competition?.ageEligibilityDate) {
-      // Fallback for legacy single-date
-      const cutoff = new Date(`${competition.ageEligibilityDate}T00:00:00`);
-      const dobStr = String(player.dateOfBirth);
-      const dob = /^\d{4}-\d{2}-\d{2}$/.test(dobStr) ? new Date(`${dobStr}T00:00:00`) : new Date(dobStr);
-
-      if (!Number.isNaN(cutoff.getTime()) && !Number.isNaN(dob.getTime())) {
-        if (dob < cutoff) {
-          isEligible = false;
-          reason = `Born before ${cutoff.toLocaleDateString()}`;
-        } else {
-          isEligible = true;
-        }
-      }
-    } else if (competition?.age) {
-      // Fallback or Legacy check
-      // For simplicity, if groups exist, we should rely on them. 
-      // If we fall through here, it might be a purely label-based legacy comp.
-      if (competition.groups && competition.groups.length > 0) {
-        // Should have been caught above, unless groups had no dates?
-        // If we are here, assume eligible if we passed above checks or if logic fell through
-        isEligible = true;
-      } else {
-        // Legacy parse logic (omitted for brevity, assume eligible for now to avoid false negatives)
-        isEligible = true;
-      }
-    } else {
-      isEligible = true;
-    }
-
-    // Senior competition U18 rule (based on current age)
-    const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
-    if (isEligible && isSeniorCompetition && playerAge <= 18 && !allowU18Extras) {
-      return { eligible: false, reason: "U18 players not allowed in Senior competition" };
-    }
-
-    return { eligible: isEligible, reason: isEligible ? "" : reason };
-  };
 
   // Handle player selection with animation support
   const selectedPlayersData = eligiblePlayers?.players?.filter((p: any) => selectedPlayers.includes(p.id)) || [];
@@ -407,26 +260,59 @@ const ClubCompetitionDetails = () => {
       setSelectedPlayers(prev => [...prev, player.id]);
     } else {
       setSelectedPlayers(prev => prev.filter(id => id !== player.id));
+      // If removing the captain, clear captainId
+      if (captainId === player.id) setCaptainId(null);
     }
   };
 
-  // Handle add players
-  const handleAddPlayers = () => {
-    if (selectedPlayers.length === 0) {
-      toast.error("Please select at least one player");
+  // Handle save players (add new + remove deselected)
+  const handleSavePlayers = async () => {
+    if (!activeGroupId) {
+      toast.error("No group selected");
       return;
     }
 
-    // Filter out already registered players to only add new ones
-    const registeredPlayerIds = registeredPlayers?.registrations?.map((reg: any) => reg.player.id) || [];
-    const newPlayersToAdd = selectedPlayers.filter(playerId => !registeredPlayerIds.includes(playerId));
+    // Get currently registered player IDs for this specific group
+    const registeredPlayerIds = registeredPlayers?.registrations
+      ?.filter((reg: any) => reg.groupId === activeGroupId)
+      ?.map((reg: any) => reg.player.id) || [];
 
-    if (newPlayersToAdd.length === 0) {
-      toast.info("All selected players are already registered for this competition");
+    // Determine which players to ADD (selected but not registered)
+    const playersToAdd = selectedPlayers.filter(playerId => !registeredPlayerIds.includes(playerId));
+
+    // Determine which players to REMOVE (registered but not selected)
+    const playersToRemove = registeredPlayerIds.filter((playerId: number) => !selectedPlayers.includes(playerId));
+
+    // If no changes, just close the dialog
+    if (playersToAdd.length === 0 && playersToRemove.length === 0) {
+      toast.info("No changes to save");
+      setShowAddPlayers(false);
       return;
     }
 
-    addPlayersMutation.mutate(newPlayersToAdd);
+    try {
+      // Remove deselected players first
+      if (playersToRemove.length > 0) {
+        for (const playerId of playersToRemove) {
+          await removePlayerFromCompetitionMutation.mutateAsync({ playerId });
+        }
+      }
+
+      // Add new players
+      if (playersToAdd.length > 0) {
+        await addPlayersMutation.mutateAsync({
+          playerIds: playersToAdd,
+          groupId: activeGroupId,
+          captainId
+        });
+      }
+
+      toast.success(`Successfully saved changes: ${playersToAdd.length} added, ${playersToRemove.length} removed`);
+      setShowAddPlayers(false);
+      setSelectedPlayers([]);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to save players");
+    }
   };
 
   // Handle error
@@ -451,6 +337,8 @@ const ClubCompetitionDetails = () => {
     );
   }
 
+  const activeGroupData = competition?.groups?.find((g: any) => g.groupId === activeGroupId);
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -463,298 +351,394 @@ const ClubCompetitionDetails = () => {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Competitions
         </Button>
+      </div>
 
-        <Dialog open={showAddPlayers} onOpenChange={setShowAddPlayers}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add Players
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="w-[95vw] max-w-none h-[90vh] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add Players to Competition</DialogTitle>
-              <DialogDescription>
-                Select players from your club to participate in "{competition?.competitionName}".
-                Maximum {competition?.maxPlayers} players allowed.
-                {competition?.age && ` Age requirement: ${competition.age}`}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              {isLoadingPlayers ? (
-                <div className="flex justify-center py-8">
-                  <LoaderCircle className="h-6 w-6 animate-spin" />
-                  <span className="ml-2">Loading eligible players...</span>
+      <Dialog open={showAddPlayers} onOpenChange={(open) => {
+        setShowAddPlayers(open);
+        if (!open) { setActiveGroupId(null); setSelectedPlayers([]); setCaptainId(null); }
+      }}>
+        <DialogContent className="max-w-[95vw] w-[95vw] sm:max-w-[95vw] h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap text-left">
+              <span>Add Players — {activeGroupData?.groupName || 'Group'}</span>
+              {activeGroupData && (
+                <div className="flex items-center gap-2 flex-wrap mt-1 sm:mt-0">
+                  <Badge variant="outline" className="text-xs ml-2">{activeGroupData.gender}</Badge>
+                  <Badge variant="outline" className="text-xs">{activeGroupData.age}</Badge>
+                  {activeGroupData.ageEligibilityDate && (
+                    <>
+                      <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
+                        Born On/After: {formatDate(activeGroupData.ageEligibilityDate)}
+                      </span>
+                      <span className="text-xs text-blue-600 ml-2 font-medium whitespace-nowrap">
+                        (Max Age: ~{calculateAge(activeGroupData.ageEligibilityDate)} years)
+                      </span>
+                    </>
+                  )}
                 </div>
-              ) : eligiblePlayers?.players?.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">
-                  No eligible players found in your club.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  <div className="text-sm text-muted-foreground text-center">
-                    Selected: {selectedPlayers.length} / {competition?.maxPlayers || 0} players
-                  </div>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              Select players for group "{activeGroupData?.groupName}" in "{competition?.competitionName}".
+              Maximum {competition?.maxPlayers} players allowed per group.
+            </DialogDescription>
+          </DialogHeader>
 
-                  <div className="grid grid-cols-2 gap-6 h-[600px]">
-                    {/* Available Players Column */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm text-muted-foreground border-b pb-2 flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Available Players ({eligiblePlayers?.players?.filter((p: any) => !selectedPlayers.includes(p.id)).length})
-                      </h4>
-                      <div className="space-y-2 max-h-[550px] overflow-y-auto pr-2">
-                        <AnimatePresence mode="popLayout">
-                          {(() => {
-                            const available = eligiblePlayers?.players?.filter((player: any) => !selectedPlayers.includes(player.id)) || [];
+          {/* Coach & Manager for this group */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Manager Name</label>
+              <Input
+                placeholder="Enter manager name"
+                value={activeGroupId ? (managerNames[activeGroupId] || '') : ''}
+                onChange={(e) => {
+                  if (activeGroupId) setManagerNames(prev => ({ ...prev, [activeGroupId]: e.target.value }));
+                }}
+                disabled={updateClubInfoMutation.isPending}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Coach Name</label>
+              <Input
+                placeholder="Enter coach name"
+                value={activeGroupId ? (coachNames[activeGroupId] || '') : ''}
+                onChange={(e) => {
+                  if (activeGroupId) setCoachNames(prev => ({ ...prev, [activeGroupId]: e.target.value }));
+                }}
+                disabled={updateClubInfoMutation.isPending}
+              />
+            </div>
+            <div className="md:col-span-2 flex justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (activeGroupId) {
+                    updateClubInfoMutation.mutate({
+                      managerName: managerNames[activeGroupId] || '',
+                      coachName: coachNames[activeGroupId] || '',
+                      groupId: activeGroupId,
+                    });
+                  }
+                }}
+                disabled={updateClubInfoMutation.isPending || !activeGroupId}
+              >
+                {updateClubInfoMutation.isPending ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Coach/Manager"
+                )}
+              </Button>
+            </div>
+          </div>
 
-                            // Sort: Eligible first, then Ineligible, then by Name
-                            const sortedPlayers = [...available].sort((a: any, b: any) => {
-                              const aStatus = getEligibilityStatus(a);
-                              const bStatus = getEligibilityStatus(b);
-                              if (aStatus.eligible && !bStatus.eligible) return -1;
-                              if (!aStatus.eligible && bStatus.eligible) return 1;
-                              return (a.firstName || "").localeCompare(b.firstName || "");
-                            });
+          <div className="flex-1 min-h-0 flex flex-col space-y-4">
+            {isLoadingPlayers ? (
+              <div className="flex justify-center py-8">
+                <LoaderCircle className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Loading eligible players...</span>
+              </div>
+            ) : eligiblePlayers?.players?.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                No eligible players found in your club.
+              </p>
+            ) : (
+              <div className="flex-1 min-h-0 flex flex-col space-y-4">
+                <div className="text-sm text-muted-foreground text-center">
+                  Selected: {selectedPlayers.length} / {competition?.maxPlayers || 0} players
+                </div>
 
-                            return sortedPlayers.map((player: any) => {
-                              const { eligible, reason } = getEligibilityStatus(player);
-                              const playerAge = getPlayerAge(player, ageReferenceDate); // Use helper
-                              const playerGroupNames = player.groups?.map((g: any) => g.groupName).join(", ") || "No Group";
+                <div className="grid grid-cols-2 gap-6 flex-1 min-h-0">
+                  {/* Available Players Column */}
+                  <div className="space-y-2 flex flex-col min-h-0">
+                    <h4 className="font-medium text-sm text-muted-foreground border-b pb-2 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Available Players ({eligiblePlayers?.players?.filter((p: any) => !selectedPlayers.includes(p.id)).length})
+                    </h4>
+                    <div className="space-y-2 flex-1 overflow-y-auto pr-2">
+                      <AnimatePresence mode="popLayout">
+                        {(() => {
+                          const available = eligiblePlayers?.players?.filter((player: any) => !selectedPlayers.includes(player.id)) || [];
 
-                              // Recalculate u18 constraint for visual disable
-                              // Note: We might want to allow selecting ineligible players if the user insists? 
-                              // No, usually best to disable. But user said "show ineligible", usually implies read-only.
-                              // Check standard constraints
-                              const u18Constraint = !(isSeniorCompetition && (typeof playerAge === 'number' && playerAge <= 18) && (
-                                (!allowU18Extras) || (allowU18Extras && remainingU18Slots <= 0)
-                              ));
+                          // Sort: Eligible first, then Ineligible, then by Name
+                          const sortedPlayers = [...available].sort((a: any, b: any) => {
+                            if (a.eligible && !b.eligible) return -1;
+                            if (!a.eligible && b.eligible) return 1;
+                            return (a.firstName || "").localeCompare(b.firstName || "");
+                          });
 
-                              const canSelect = eligible && selectedPlayers.length < (competition?.maxPlayers || 0) && u18Constraint;
+                          return sortedPlayers.map((player: any) => {
+                            const eligible = player.eligible;
+                            const reason = player.reason || "";
+                            const playerAge = getPlayerAge(player, ageReferenceDate); // Use helper
 
-                              return (
-                                <motion.div
-                                  key={`available-${player.id}`}
-                                  initial={{ opacity: 0, x: -20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  exit={{ opacity: 0, x: 20, scale: 0.9 }}
-                                  layout
-                                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                                  className={`flex items-center justify-between p-3 border rounded-lg transition-all duration-200 ${!eligible ? 'bg-muted opacity-70' :
-                                    canSelect ? 'cursor-pointer hover:bg-muted/50 hover:shadow-sm hover:border-primary/30' :
-                                      'cursor-not-allowed opacity-60'
-                                    }`}
-                                  onClick={() => {
-                                    if (canSelect) {
-                                      handlePlayerSelect(player, true);
-                                    } else if (eligible && selectedPlayers.length >= (competition?.maxPlayers || 0)) {
-                                      toast.error(`Maximum ${competition?.maxPlayers} players allowed`);
-                                    } else if (eligible && isSeniorCompetition && (typeof playerAge === 'number' && playerAge <= 18) && allowU18Extras && remainingU18Slots <= 0) {
-                                      toast.error("U18 (age 18 or below) slots are full (max 3)");
-                                    } else if (eligible && isSeniorCompetition && (typeof playerAge === 'number' && playerAge <= 18) && !allowU18Extras) {
-                                      toast.error("U18 (age 18 or below) players are not allowed for this competition");
-                                    }
-                                  }}
+                            // Recalculate u18 constraint for visual disable
+                            // Note: We might want to allow selecting ineligible players if the user insists? 
+                            // No, usually best to disable. But user said "show ineligible", usually implies read-only.
+                            // Check standard constraints
+                            const u18Constraint = !(isSeniorCompetition && (typeof playerAge === 'number' && playerAge <= 18) && (
+                              (!allowU18Extras) || (allowU18Extras && remainingU18Slots <= 0)
+                            ));
 
-                                  whileHover={canSelect ? { scale: 1.02 } : {}}
-                                  whileTap={canSelect ? { scale: 0.98 } : {}}
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="font-medium text-sm truncate">
-                                        {player.firstName} {player.lastName}
-                                      </span>
-                                      <Badge variant="outline" className="text-xs flex-shrink-0">
-                                        Age: {playerAge ?? 'N/A'}
-                                      </Badge>
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant={eligible ? "outline" : "destructive"} className={`text-xs flex-shrink-0 cursor-help ${eligible ? "border-green-500 text-green-600 bg-green-50" : ""}`}>
-                                              {eligible ? "Eligible" : "Ineligible"}
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent className="max-w-xs">
-                                            <div className="text-xs space-y-2">
-                                              <div>
-                                                <p className="font-semibold mb-1">Player Details:</p>
-                                                <p>DOB: {new Date(player.dateOfBirth).toLocaleDateString()}</p>
-                                                <p>Group: <span className="font-mono bg-black/10 px-1 rounded">{player.groups?.map((g: any) => `${g.groupName} (${g.id})`).join(", ") || "No Group"}</span></p>
-                                                {!eligible && reason && (
-                                                  <p className="text-red-500 mt-1 font-medium">{reason}</p>
-                                                )}
-                                              </div>
+                            const canSelect = eligible && selectedPlayers.length < (competition?.maxPlayers || 0) && u18Constraint;
 
-                                              {eligible && (
-                                                <div>
-                                                  <p className="font-semibold mb-1">Qualified For:</p>
-                                                  <ul className="list-disc pl-3">
-                                                    {competition.groups
-                                                      .filter((g: any) => player.groups?.some((pg: any) => pg.id === g.groupId))
-                                                      .filter((g: any) => {
-                                                        if (!g.ageEligibilityDate) return true;
-                                                        const dob = new Date(player.dateOfBirth);
-                                                        const cutoff = new Date(g.ageEligibilityDate);
-                                                        const ageType = g.ageType || g.group?.ageType || "UNDER";
-                                                        if (ageType === "ABOVE") return dob <= cutoff;
-                                                        return dob >= cutoff;
-                                                      })
-                                                      .map((g: any) => (
-                                                        <li key={g.id} className="text-green-600 font-medium">
-                                                          {g.groupName}
-                                                        </li>
-                                                      ))}
-                                                  </ul>
-                                                </div>
+                            return (
+                              <motion.div
+                                key={`available-${player.id}`}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                                layout
+                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                className={`flex items-center justify-between p-3 border rounded-lg transition-all duration-200 ${!eligible ? 'bg-muted opacity-70' :
+                                  canSelect ? 'cursor-pointer hover:bg-muted/50 hover:shadow-sm hover:border-primary/30' :
+                                    'cursor-not-allowed opacity-60'
+                                  }`}
+                                onClick={() => {
+                                  if (canSelect) {
+                                    handlePlayerSelect(player, true);
+                                  } else if (eligible && selectedPlayers.length >= (competition?.maxPlayers || 0)) {
+                                    toast.error(`Maximum ${competition?.maxPlayers} players allowed`);
+                                  } else if (eligible && isSeniorCompetition && (typeof playerAge === 'number' && playerAge <= 18) && allowU18Extras && remainingU18Slots <= 0) {
+                                    toast.error("U18 (age 18 or below) slots are full (max 3)");
+                                  } else if (eligible && isSeniorCompetition && (typeof playerAge === 'number' && playerAge <= 18) && !allowU18Extras) {
+                                    toast.error("U18 (age 18 or below) players are not allowed for this competition");
+                                  }
+                                }}
+
+                                whileHover={canSelect ? { scale: 1.02 } : {}}
+                                whileTap={canSelect ? { scale: 0.98 } : {}}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm truncate">
+                                      {player.firstName} {player.lastName}
+                                    </span>
+                                    <Badge variant="outline" className="text-xs flex-shrink-0">
+                                      Age: {playerAge ?? 'N/A'}
+                                    </Badge>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant={eligible ? "outline" : "destructive"} className={`text-xs flex-shrink-0 cursor-help ${eligible ? "border-green-500 text-green-600 bg-green-50" : ""}`}>
+                                            {eligible ? "Eligible" : "Ineligible"}
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs">
+                                          <div className="text-xs space-y-2">
+                                            <div>
+                                              <p className="font-semibold mb-1">Player Details:</p>
+                                              <p>DOB: {formatDate(player.dateOfBirth)}</p>
+                                              <p>Group: <span className="font-mono bg-black/10 px-1 rounded">{player.groups?.map((g: any) => `${g.groupName} (${g.id})`).join(", ") || "No Group"}</span></p>
+                                              {!eligible && reason && (
+                                                <p className="text-red-500 mt-1 font-medium">{reason}</p>
                                               )}
                                             </div>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground truncate">
-                                      {player.uniqueIdNumber} • {player.position || 'N/A'}
-                                    </div>
+
+                                            {eligible && (
+                                              <div>
+                                                <p className="font-semibold mb-1">Qualified For:</p>
+                                                <ul className="list-disc pl-3">
+                                                  {competition.groups
+                                                    .filter((g: any) => player.groups?.some((pg: any) => pg.id === g.groupId))
+                                                    .filter((g: any) => {
+                                                      if (!g.ageEligibilityDate) return true;
+                                                      const dob = new Date(player.dateOfBirth);
+                                                      const cutoff = new Date(g.ageEligibilityDate);
+                                                      const ageType = g.ageType || g.group?.ageType || "UNDER";
+                                                      if (ageType === "ABOVE") return dob <= cutoff;
+                                                      return dob >= cutoff;
+                                                    })
+                                                    .map((g: any) => (
+                                                      <li key={g.id} className="text-green-600 font-medium">
+                                                        {g.groupName}
+                                                      </li>
+                                                    ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                   </div>
-                                  {canSelect && (
-                                    <motion.div
-                                      initial={{ opacity: 0 }}
-                                      animate={{ opacity: 1 }}
-                                      className="flex items-center text-muted-foreground"
-                                    >
-                                      <Plus className="h-4 w-4" />
-                                    </motion.div>
-                                  )}
-                                </motion.div>
-                              );
-                            });
-                          })()}
-                        </AnimatePresence>
-                        {eligiblePlayers?.players?.filter((p: any) => !selectedPlayers.includes(p.id)).length === 0 && (
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {player.uniqueIdNumber} • {player.position || 'N/A'}
+                                  </div>
+                                </div>
+                                {canSelect && (
+                                  <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex items-center text-muted-foreground"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </motion.div>
+                                )}
+                              </motion.div>
+                            );
+                          });
+                        })()}
+                      </AnimatePresence>
+                      {eligiblePlayers?.players?.filter((p: any) => !selectedPlayers.includes(p.id)).length === 0 && (
+                        <motion.p
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="text-center py-8 text-muted-foreground text-sm"
+                        >
+                          All eligible players have been selected
+                        </motion.p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Selected Players Column */}
+                  <div className="space-y-2 flex flex-col min-h-0">
+                    <h4 className="font-medium text-sm text-muted-foreground border-b pb-2 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      Selected Players ({selectedPlayers.length})
+                    </h4>
+                    <div className="space-y-2 flex-1 overflow-y-auto pr-2">
+                      <AnimatePresence mode="popLayout">
+                        {selectedPlayers.length === 0 ? (
                           <motion.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className="text-center py-8 text-muted-foreground text-sm"
                           >
-                            All eligible players have been selected
+                            No players selected yet
                           </motion.p>
-                        )}
-                      </div>
-                    </div>
+                        ) : (
+                          selectedPlayers.map((playerId) => {
+                            const player = eligiblePlayers?.players?.find((p: any) => p.id === playerId);
+                            if (!player) return null;
 
-                    {/* Selected Players Column */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm text-muted-foreground border-b pb-2 flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Selected Players ({selectedPlayers.length})
-                      </h4>
-                      <div className="space-y-2 max-h-[550px] overflow-y-auto pr-2">
-                        <AnimatePresence mode="popLayout">
-                          {selectedPlayers.length === 0 ? (
-                            <motion.p
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="text-center py-8 text-muted-foreground text-sm"
-                            >
-                              No players selected yet
-                            </motion.p>
-                          ) : (
-                            selectedPlayers.map((playerId) => {
-                              const player = eligiblePlayers?.players?.find((p: any) => p.id === playerId);
-                              if (!player) return null;
+                            const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
+                            const isAlreadyRegistered = registeredPlayers?.registrations?.some((reg: any) => reg.player.id === playerId) || false;
 
-                              const playerAge = calculateAge(player.dateOfBirth, ageReferenceDate);
-                              const isAlreadyRegistered = registeredPlayers?.registrations?.some((reg: any) => reg.player.id === playerId) || false;
-
-                              return (
-                                <motion.div
-                                  key={`selected-${player.id}`}
-                                  initial={{ opacity: 0, x: 20 }}
-                                  animate={{ opacity: 1, x: 0 }}
-                                  exit={{ opacity: 0, x: -20, scale: 0.9 }}
-                                  layout
-                                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                                  className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${isAlreadyRegistered
-                                    ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                                    : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
-                                    }`}
-                                  onClick={() => handlePlayerSelect(player, false)}
-                                  whileHover={{ scale: 1.02 }}
-                                  whileTap={{ scale: 0.98 }}
-                                >
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="font-medium text-sm truncate">
-                                        {player.firstName} {player.lastName}
-                                      </span>
-                                      <Badge variant="outline" className="text-xs flex-shrink-0">
-                                        Age: {playerAge}
+                            return (
+                              <motion.div
+                                key={`selected-${player.id}`}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20, scale: 0.9 }}
+                                layout
+                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${isAlreadyRegistered
+                                  ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                                  : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
+                                  }`}
+                                onClick={() => handlePlayerSelect(player, false)}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm truncate">
+                                      {player.firstName} {player.lastName}
+                                    </span>
+                                    <Badge variant="outline" className="text-xs flex-shrink-0">
+                                      Age: {playerAge}
+                                    </Badge>
+                                    {isAlreadyRegistered && (
+                                      <Badge variant="secondary" className="text-xs flex-shrink-0 bg-green-100 text-green-800">
+                                        Already Registered
                                       </Badge>
-                                      {isAlreadyRegistered && (
-                                        <Badge variant="secondary" className="text-xs flex-shrink-0 bg-green-100 text-green-800">
-                                          Already Registered
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground truncate">
-                                      {player.uniqueIdNumber} • {player.position || 'N/A'}
-                                    </div>
+                                    )}
+                                    {captainId === player.id && (
+                                      <Badge className="text-xs flex-shrink-0 bg-amber-100 text-amber-800 border-amber-300">
+                                        <Crown className="h-3 w-3 mr-1" /> Captain
+                                      </Badge>
+                                    )}
                                   </div>
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {player.uniqueIdNumber} • {player.position || 'N/A'}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <motion.button
+                                    type="button"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className={`p-1.5 rounded-md transition-colors ${captainId === player.id ? 'text-amber-600 bg-amber-100' : 'text-muted-foreground hover:text-amber-600 hover:bg-amber-50'}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCaptainId(captainId === player.id ? null : player.id);
+                                      // If already registered, also call the API to persist
+                                      if (isAlreadyRegistered && captainId !== player.id) {
+                                        const reg = registeredPlayers?.registrations?.find(
+                                          (r: any) => r.player.id === player.id && r.groupId === activeGroupId
+                                        );
+                                        if (reg) setCaptainMutation.mutate({ registrationId: reg.id });
+                                      }
+                                    }}
+                                    title={captainId === player.id ? 'Remove Captain' : 'Set as Captain'}
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                  >
+                                    <Crown className="h-4 w-4" />
+                                  </motion.button>
                                   <motion.div
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    className="flex items-center text-red-500 hover:text-red-600"
+                                    className="flex items-center text-red-500 hover:text-red-600 p-1.5 cursor-pointer"
+                                    onClick={(e) => { e.stopPropagation(); handlePlayerSelect(player, false); }}
                                   >
                                     <X className="h-4 w-4" />
                                   </motion.div>
-                                </motion.div>
-                              );
-                            })
-                          )}
-                        </AnimatePresence>
-                      </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddPlayers(false);
-                  setSelectedPlayers([]);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAddPlayers}
-                disabled={selectedPlayers.length === 0 || addPlayersMutation.isPending}
-              >
-                {addPlayersMutation.isPending ? (
-                  <>
-                    <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
-                    Adding Players...
-                  </>
-                ) : (() => {
-                  const registeredPlayerIds = registeredPlayers?.registrations?.map((reg: any) => reg.player.id) || [];
-                  const newPlayersCount = selectedPlayers.filter(playerId => !registeredPlayerIds.includes(playerId)).length;
-                  const alreadyRegisteredCount = selectedPlayers.length - newPlayersCount;
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddPlayers(false);
+                setSelectedPlayers([]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSavePlayers}
+              disabled={addPlayersMutation.isPending || removePlayerFromCompetitionMutation.isPending}
+            >
+              {(addPlayersMutation.isPending || removePlayerFromCompetitionMutation.isPending) ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (() => {
+                const registeredPlayerIds = registeredPlayers?.registrations
+                  ?.filter((reg: any) => reg.groupId === activeGroupId)
+                  ?.map((reg: any) => reg.player.id) || [];
+                const playersToAdd = selectedPlayers.filter(playerId => !registeredPlayerIds.includes(playerId)).length;
+                const playersToRemove = registeredPlayerIds.filter((playerId: number) => !selectedPlayers.includes(playerId)).length;
+                const totalChanges = playersToAdd + playersToRemove;
 
-                  if (newPlayersCount === 0) {
-                    return "All Selected Players Already Registered";
-                  }
+                if (totalChanges === 0) {
+                  return "No Changes to Save";
+                }
 
-                  return `Add ${newPlayersCount} New Player${newPlayersCount !== 1 ? 's' : ''}${alreadyRegisteredCount > 0 ? ` (${alreadyRegisteredCount} already registered)` : ''}`;
-                })()}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+                return `Save Players (${playersToAdd} to add, ${playersToRemove} to remove)`;
+              })()}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Competition Overview */}
       <Card>
@@ -838,7 +822,7 @@ const ClubCompetitionDetails = () => {
                         <span className="font-medium">Born On/After:</span>
                         <span>
                           {group.ageEligibilityDate
-                            ? new Date(group.ageEligibilityDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                            ? formatDate(group.ageEligibilityDate)
                             : 'N/A'}
                         </span>
                       </div>
@@ -849,6 +833,21 @@ const ClubCompetitionDetails = () => {
                           <span className="text-blue-600">~{calculateAge(group.ageEligibilityDate)} years</span>
                         </div>
                       )}
+
+                      <Button
+                        size="sm"
+                        className="w-full mt-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Determine the correct group ID - handle both structures if needed
+                          const gid = group.groupId || group.id;
+                          setActiveGroupId(gid);
+                          setShowAddPlayers(true);
+                        }}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Add Players
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -859,193 +858,24 @@ const ClubCompetitionDetails = () => {
       </Card>
 
       {/* Competition Rules */}
-      {competition?.rules && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Competition Rules</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div
-              className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: competition.rules }}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {
+        competition?.rules && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Competition Rules</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: competition.rules }}
+              />
+            </CardContent>
+          </Card>
+        )
+      }
 
-      {/* Club Info Card - Manager and Coach */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Club Information</CardTitle>
-          <CardDescription>
-            Manager and Coach details for this competition
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingClubInfo ? (
-            <div className="flex justify-center py-4">
-              <LoaderCircle className="h-5 w-5 animate-spin" />
-              <span className="ml-2 text-sm">Loading...</span>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Manager Name</label>
-                <Input
-                  placeholder="Enter manager name"
-                  value={managerName}
-                  onChange={(e) => setManagerName(e.target.value)}
-                  disabled={updateClubInfoMutation.isPending}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Coach Name</label>
-                <Input
-                  placeholder="Enter coach name"
-                  value={coachName}
-                  onChange={(e) => setCoachName(e.target.value)}
-                  disabled={updateClubInfoMutation.isPending}
-                />
-              </div>
-            </div>
-          )}
-          <div className="mt-4 flex justify-end">
-            <Button
-              onClick={() => updateClubInfoMutation.mutate({ managerName, coachName })}
-              disabled={updateClubInfoMutation.isPending || isLoadingClubInfo}
-            >
-              {updateClubInfoMutation.isPending ? (
-                <>
-                  <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
-                  Saving...
-                </>
-              ) : (
-                "Save Club Info"
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Registered Players from Your Club */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Club's Registered Players</CardTitle>
-          <CardDescription>
-            Players from your club registered for this competition
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoadingRegistered ? (
-            <div className="flex justify-center py-8">
-              <LoaderCircle className="h-6 w-6 animate-spin" />
-              <span className="ml-2">Loading registered players...</span>
-            </div>
-          ) : registeredPlayers?.registrations?.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">
-              No players registered yet. Click "Add Players" to register players for this competition.
-            </p>
-          ) : (
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Player Name</TableHead>
-                    <TableHead>Unique ID</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Age</TableHead>
-                    <TableHead>Registration Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Captain</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {registeredPlayers?.registrations?.map((registration: any) => (
-                    <TableRow key={registration.id}>
-                      <TableCell className="font-medium">
-                        {registration.player.name}
-                      </TableCell>
-                      <TableCell>{registration.player.uniqueIdNumber}</TableCell>
-                      <TableCell>{registration.player.position || 'N/A'}</TableCell>
-                      <TableCell>
-                        {(() => {
-                          const age = getPlayerAge(registration.player);
-                          return typeof age === "number" ? `${age} years` : "";
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(registration.registrationDate)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={registration.status === 'registered' ? 'default' : 'secondary'}
-                        >
-                          {registration.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {registration.captain ? (
-                          <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">
-                            <Crown className="h-3 w-3 mr-1" />
-                            Captain
-                          </Badge>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCaptainMutation.mutate(registration.id)}
-                            disabled={setCaptainMutation.isPending}
-                          >
-                            {setCaptainMutation.isPending ? (
-                              <LoaderCircle className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Crown className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            Set Captain
-                          </Button>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isCompetitionOver ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadMeritCertificate(registration.player.id, registration.player.name)}
-                          >
-                            Download Merit Certificate
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removePlayerMutation.mutate(registration.player.id)}
-                            disabled={removePlayerMutation.isPending}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            {removePlayerMutation.isPending ? (
-                              <LoaderCircle className="h-4 w-4 animate-spin" />
-                            ) : (
-                              "Remove"
-                            )}
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {registeredPlayers?.registrations?.length > 0 && (
-            <div className="mt-4 text-sm text-muted-foreground">
-              Total registered: {registeredPlayers.registrations.length} / {competition?.maxPlayers} players
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    </div >
   );
 };
 

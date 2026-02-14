@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { get } from "@/services/apiService";
+import { formatDate } from "@/lib/formatter";
 import { LoaderCircle, ChevronRight } from "lucide-react";
 
 const ClubAdminDashboard: React.FC = () => {
@@ -12,7 +13,7 @@ const ClubAdminDashboard: React.FC = () => {
   try {
     const userStr = localStorage.getItem("user");
     user = userStr ? JSON.parse(userStr) : null;
-  } catch {}
+  } catch { }
 
   const name = user?.name || user?.fullName || user?.email || "Club Admin";
 
@@ -48,11 +49,7 @@ const ClubAdminDashboard: React.FC = () => {
   });
 
   // Utility: format date safely
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "-";
-    const d = new Date(dateString);
-    return isNaN(d.getTime()) ? "-" : d.toLocaleDateString();
-  };
+
 
   return (
     <div className="space-y-6 p-6">

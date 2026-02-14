@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { get } from "@/services/apiService";
+import { formatDate } from "@/lib/formatter";
 import {
   Table,
   TableBody,
@@ -19,7 +20,7 @@ const AdminDashboard: React.FC = () => {
   try {
     const userStr = localStorage.getItem("user");
     user = userStr ? JSON.parse(userStr) : null;
-  } catch {}
+  } catch { }
 
   const name = user?.name || user?.fullName || user?.email || "Admin";
 
@@ -47,11 +48,7 @@ const AdminDashboard: React.FC = () => {
     queryFn: () => get("/competitions", { page: 1, limit: 5, sortBy: "competitionName", sortOrder: "asc" }),
   });
 
-  const formatDate = (d?: string) => {
-    if (!d) return "-";
-    const dt = new Date(d);
-    return isNaN(dt.getTime()) ? "-" : dt.toLocaleDateString();
-  };
+
 
   return (
     <div className="space-y-6 p-6">

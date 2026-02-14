@@ -32,8 +32,9 @@ import {
 } from "@/components/ui/tooltip";
 
 // Services and utilities
-import { post, put, get, postupload, putupload } from "@/services/apiService";
+import { get, postupload, putupload } from "@/services/apiService";
 import Validate from "@/lib/Handlevalidation";
+import { formatDate } from "@/lib/formatter";
 
 // Define interfaces for API responses
 interface CompetitionData {
@@ -172,7 +173,6 @@ const CompetitionForm = ({
   // Banner State
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [existingBanner, setExistingBanner] = useState<string | null>(null);
 
   // Handle Banner Select
   const handleBannerSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -243,8 +243,8 @@ const CompetitionForm = ({
     return {
       category: `Under ${categoryAge}`,
       age: calculatedAge,
-      description: `Players born on or after ${eligibility.toLocaleDateString()} (currently ${calculatedAge} years old) qualify for Under ${categoryAge} category`,
-      eligibilityDate: eligibility.toLocaleDateString()
+      description: `Players born on or after ${formatDate(eligibility.toISOString())} (currently ${calculatedAge} years old) qualify for Under ${categoryAge} category`,
+      eligibilityDate: formatDate(eligibility.toISOString())
     };
   };
 
@@ -367,7 +367,7 @@ const CompetitionForm = ({
 
       if (competitionData.banner) {
         const imageUrl = resolveUploadUrl(competitionData.banner);
-        setExistingBanner(imageUrl);
+        // setExistingBanner(imageUrl); // Unused
         setBannerPreview(imageUrl);
       }
     }
