@@ -31,7 +31,9 @@ import {
   FileDown,
   MoreHorizontal,
   UserPlus,
+  Trophy,
 } from "lucide-react";
+import { backendUrl } from "@/config";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -412,7 +414,27 @@ const CompetitionList = () => {
                 ) : (
                   data?.competitions?.map((competition: any) => (
                     <TableRow key={competition.id}>
-                      <TableCell>{competition.competitionName}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {competition.banner ? (
+                            <img
+                              src={`${backendUrl}/${competition.banner}`}
+                              alt={competition.competitionName}
+                              className="h-10 w-16 rounded-md object-cover border border-muted bg-muted/50 cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => window.open(`${backendUrl}/${competition.banner}`, '_blank')}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="h-10 w-16 rounded-md bg-muted/50 border border-muted flex items-center justify-center">
+                              <Trophy className="h-4 w-4 text-muted-foreground/50" />
+                            </div>
+                          )}
+                          <span className="font-medium">{competition.competitionName}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{competition.maxPlayers}</TableCell>
                       <TableCell>{formatDate(competition.fromDate)}</TableCell>
                       <TableCell>{formatDate(competition.toDate)}</TableCell>
