@@ -10,6 +10,7 @@ import { LoaderCircle, Check, ArrowLeft, Upload, X, ChevronsUpDown } from "lucid
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatetimePicker } from "@/components/ui/datetime-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -341,7 +342,7 @@ const PlayerForm = ({
       if (isAdmin) {
         form.setValue("clubId", playerData.clubId ? String(playerData.clubId) : "");
       }
-      
+
       // Set group IDs
       if (playerData.groups && Array.isArray(playerData.groups) && playerData.groups.length > 0) {
         form.setValue("groupIds", playerData.groups.map(group => group.id.toString()));
@@ -400,7 +401,7 @@ const PlayerForm = ({
       setAadharVerified(verified);
       if (verified) {
         toast.success("Aadhaar verified and matched successfully");
-        form.clearErrors(["aadharNumber", "firstName","lastName","dateOfBirth"]);
+        form.clearErrors(["aadharNumber", "firstName", "lastName", "dateOfBirth"]);
       } else {
         if (resp?.mismatchReasons?.includes("Aadhar number does not match")) {
           form.setError("aadharNumber", { type: "manual", message: "Aadhaar number does not match image" });
@@ -432,8 +433,8 @@ const PlayerForm = ({
         String(providerMessage || "").toLowerCase().includes("insufficient balance");
       toast.error(
         (isInsufficientBalance ? (providerMessage || "Insufficient balance to process this request.") : providerMessage) ||
-          error?.message ||
-          "Verification failed"
+        error?.message ||
+        "Verification failed"
       );
     } finally {
       setIsVerifying(false);
@@ -459,7 +460,7 @@ const PlayerForm = ({
         formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
         if (profileImageFile) formData.append('profileImage', profileImageFile);
         if (aadharImageFile) formData.append('aadharImage', aadharImageFile);
-        
+
         return postupload("/players", formData);
       } else {
         const payload = {
@@ -476,7 +477,7 @@ const PlayerForm = ({
           ...(isAdmin && data.clubId ? { clubId: parseInt(data.clubId) } : {}),
           groupIds: data.groupIds.map(id => parseInt(id))
         };
-        
+
         return post("/players", payload);
       }
     },
@@ -521,14 +522,14 @@ const PlayerForm = ({
         formData.append('aadharNumber', data.aadharNumber || '');
         if (isAdmin && data.clubId) formData.append('clubId', data.clubId);
         formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
-        
+
         if (profileImageFile) {
           formData.append('profileImage', profileImageFile);
         }
         if (aadharImageFile) {
           formData.append('aadharImage', aadharImageFile);
         }
-        
+
         return putupload(`/players/${playerId}`, formData);
       } else {
         const payload = {
@@ -545,7 +546,7 @@ const PlayerForm = ({
           ...(isAdmin && data.clubId ? { clubId: parseInt(data.clubId) } : {}),
           groupIds: data.groupIds.map(id => parseInt(id))
         };
-        
+
         return put(`/players/${playerId}`, payload);
       }
     },
@@ -617,15 +618,15 @@ const PlayerForm = ({
         toast.error('Please select an image file');
         return;
       }
-      
+
       if (file.size > 2 * 1024 * 1024) {
         toast.error('Image size must be less than 2MB');
         return;
       }
-      
+
       setProfileImageFile(file);
       setShouldRemoveImage(false);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImagePreview(reader.result as string);
@@ -682,13 +683,13 @@ const PlayerForm = ({
               {/* Profile Image Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium border-b pb-2">Profile Image</h3>
-                
+
                 <div className="flex items-center gap-4">
                   {profileImagePreview && (
                     <div className="relative">
-                      <img 
-                        src={profileImagePreview} 
-                        alt="Profile Preview" 
+                      <img
+                        src={profileImagePreview}
+                        alt="Profile Preview"
                         className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -700,7 +701,7 @@ const PlayerForm = ({
                       </div>
                     </div>
                   )}
-                  
+
                   {!profileImagePreview && (
                     <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
                       <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -709,7 +710,7 @@ const PlayerForm = ({
                       </svg>
                     </div>
                   )}
-                  
+
                   <div className="flex flex-col gap-2">
                     <div className="text-sm text-muted-foreground">
                       {mode === "edit" ? "Update passport size image" : "Add passport size image"} (optional)
@@ -720,12 +721,12 @@ const PlayerForm = ({
                     <div className="text-xs text-muted-foreground">
                       Supported size: Passport size (2×2 inches, Max 2MB)
                     </div>
-                    
+
                     <div className="flex gap-2 mt-2">
                       <label>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           size="sm"
                           className="cursor-pointer"
                           disabled={isFormLoading || aadharVerified}
@@ -744,11 +745,11 @@ const PlayerForm = ({
                           disabled={isFormLoading || aadharVerified}
                         />
                       </label>
-                      
+
                       {profileImagePreview && (
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           size="sm"
                           onClick={handleRemoveImage}
                           disabled={isFormLoading || aadharVerified}
@@ -766,7 +767,7 @@ const PlayerForm = ({
               {/* Personal Information Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium border-b pb-2">Personal Information (As per Aadhar)</h3>
-            
+
                 {/* Name Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
@@ -852,11 +853,25 @@ const PlayerForm = ({
                       <FormItem>
                         <FormLabel>Date Of Birth (According to Aadhar) <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Enter date of birth"
-                            {...field}
-                            disabled={isFormLoading || aadharVerified}
-                            type="date"
+                          <DatetimePicker
+                            value={field.value ? new Date(field.value) : undefined}
+                            onChange={(date) => {
+                              if (date) {
+                                const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                                field.onChange(offsetDate.toISOString().split('T')[0]);
+                              } else {
+                                field.onChange("");
+                              }
+                            }}
+                            format={[
+                              ["days", "months", "years"],
+                              []
+                            ]}
+                            placeholders={{
+                              days: "DD", months: "MM", years: "YYYY",
+                              hours: "", minutes: "", seconds: "", "am/pm": ""
+                            }}
+                            className="border-input"
                           />
                         </FormControl>
                         <FormMessage />
@@ -1155,7 +1170,7 @@ const PlayerForm = ({
                 <h3 className="text-lg font-medium border-b pb-2">
                   Groups{typeof playerAge === "number" ? ` (Age: ${playerAge})` : ""}
                 </h3>
-                
+
                 <FormField
                   control={form.control}
                   name="groupIds"

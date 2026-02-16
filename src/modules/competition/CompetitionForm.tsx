@@ -10,6 +10,9 @@ import { LoaderCircle, Check, ArrowLeft, Info } from "lucide-react";
 // PrimeReact Editor
 import { Editor } from 'primereact/editor';
 
+// Custom DatePicker
+
+
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -552,11 +555,25 @@ const CompetitionForm = ({
                     <FormItem>
                       <FormLabel>From Date <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Enter from date"
-                          {...field}
-                          disabled={isFormLoading}
-                          type="date"
+                        <DatetimePicker
+                          value={field.value ? new Date(field.value) : undefined}
+                          onChange={(date) => {
+                            if (date) {
+                              const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                              field.onChange(offsetDate.toISOString().split('T')[0]);
+                            } else {
+                              field.onChange("");
+                            }
+                          }}
+                          format={[
+                            ["days", "months", "years"],
+                            []
+                          ]}
+                          placeholders={{
+                            days: "DD", months: "MM", years: "YYYY",
+                            hours: "", minutes: "", seconds: "", "am/pm": ""
+                          }}
+                          className="border-input"
                         />
                       </FormControl>
                       <FormMessage />
@@ -572,11 +589,25 @@ const CompetitionForm = ({
                     <FormItem>
                       <FormLabel>To Date <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Enter to date"
-                          {...field}
-                          disabled={isFormLoading}
-                          type="date"
+                        <DatetimePicker
+                          value={field.value ? new Date(field.value) : undefined}
+                          onChange={(date) => {
+                            if (date) {
+                              const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                              field.onChange(offsetDate.toISOString().split('T')[0]);
+                            } else {
+                              field.onChange("");
+                            }
+                          }}
+                          format={[
+                            ["days", "months", "years"],
+                            []
+                          ]}
+                          placeholders={{
+                            days: "DD", months: "MM", years: "YYYY",
+                            hours: "", minutes: "", seconds: "", "am/pm": ""
+                          }}
+                          className="border-input"
                         />
                       </FormControl>
                       <FormMessage />
@@ -647,11 +678,25 @@ const CompetitionForm = ({
                     <FormItem>
                       <FormLabel>Last Entry Date <span className="text-red-500">*</span></FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Enter last entry date (e.g., YYYY-MM-DD)"
-                          {...field}
-                          disabled={isFormLoading}
-                          type="date"
+                        <DatetimePicker
+                          value={field.value ? new Date(field.value) : undefined}
+                          onChange={(date) => {
+                            if (date) {
+                              const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                              field.onChange(offsetDate.toISOString().split('T')[0]);
+                            } else {
+                              field.onChange("");
+                            }
+                          }}
+                          format={[
+                            ["days", "months", "years"],
+                            []
+                          ]}
+                          placeholders={{
+                            days: "DD", months: "MM", years: "YYYY",
+                            hours: "", minutes: "", seconds: "", "am/pm": ""
+                          }}
+                          className="border-input"
                         />
                       </FormControl>
                       <FormMessage />
@@ -804,15 +849,27 @@ const CompetitionForm = ({
                                     </TooltipProvider>
                                   </div>
                                   <div className="flex flex-col sm:flex-row gap-3">
-                                    <Input
-                                      type="date"
-                                      value={groupItem.ageEligibilityDate}
-                                      onChange={(e) => {
-                                        const newVal = [...field.value];
-                                        newVal[index] = { ...newVal[index], ageEligibilityDate: e.target.value };
-                                        field.onChange(newVal);
+                                    <DatetimePicker
+                                      value={groupItem.ageEligibilityDate ? new Date(groupItem.ageEligibilityDate) : undefined}
+                                      onChange={(date) => {
+                                        const newValues = [...field.value];
+                                        if (date) {
+                                          const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                                          newValues[index] = { ...newValues[index], ageEligibilityDate: offsetDate.toISOString().split('T')[0] };
+                                        } else {
+                                          newValues[index] = { ...newValues[index], ageEligibilityDate: "" };
+                                        }
+                                        field.onChange(newValues);
                                       }}
-                                      className="h-8 max-w-[200px]"
+                                      format={[
+                                        ["days", "months", "years"],
+                                        []
+                                      ]}
+                                      placeholders={{
+                                        days: "DD", months: "MM", years: "YYYY",
+                                        hours: "", minutes: "", seconds: "", "am/pm": ""
+                                      }}
+                                      className="h-8 border-input"
                                     />
                                     {groupItem.ageEligibilityDate && ageCat && (
                                       <div className="text-xs text-muted-foreground flex items-center">

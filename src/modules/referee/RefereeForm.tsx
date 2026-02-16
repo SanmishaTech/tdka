@@ -10,7 +10,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/components/ui/password-input";
+import { DatetimePicker } from "@/components/ui/datetime-picker";
 import {
   Form,
   FormControl,
@@ -68,7 +68,7 @@ const RefereeForm = ({ mode, refereeId, onSuccess, className }: RefereeFormProps
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [aadharImageFile, setAadharImageFile] = useState(null);
+  const [aadharImageFile, setAadharImageFile] = useState<File | null>(null);
   const [aadharImagePreview, setAadharImagePreview] = useState<string | null>(null);
   const [existingAadharImage, setExistingAadharImage] = useState<string | null>(null);
   const [aadharVerified, setAadharVerified] = useState<boolean>(false);
@@ -456,7 +456,32 @@ const RefereeForm = ({ mode, refereeId, onSuccess, className }: RefereeFormProps
                         <FormItem>
                           <FormLabel>Date of Birth</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} disabled={isFormLoading} />
+                            <DatetimePicker
+                              value={field.value ? new Date(field.value) : undefined}
+                              onChange={(date) => {
+                                if (date) {
+                                  // Adjust for timezone offset to keep the date correct
+                                  const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                                  field.onChange(offsetDate.toISOString().split('T')[0]);
+                                } else {
+                                  field.onChange(undefined);
+                                }
+                              }}
+                              format={[
+                                ["days", "months", "years"],
+                                []
+                              ]}
+                              placeholders={{
+                                days: "DD",
+                                months: "MM",
+                                years: "YYYY",
+                                hours: "",
+                                minutes: "",
+                                seconds: "",
+                                "am/pm": ""
+                              }}
+                              className="border-input"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
