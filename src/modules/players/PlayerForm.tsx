@@ -854,11 +854,14 @@ const PlayerForm = ({
                         <FormLabel>Date Of Birth (According to Aadhar) <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <DatetimePicker
-                            value={field.value ? new Date(field.value) : undefined}
+                            key={field.value || "empty"}
+                            value={field.value ? new Date(field.value + "T00:00:00") : undefined}
                             onChange={(date) => {
                               if (date) {
-                                const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-                                field.onChange(offsetDate.toISOString().split('T')[0]);
+                                const year = date.getFullYear();
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const day = String(date.getDate()).padStart(2, '0');
+                                field.onChange(`${year}-${month}-${day}`);
                               } else {
                                 field.onChange("");
                               }

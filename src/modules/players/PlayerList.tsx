@@ -182,7 +182,7 @@ const PlayerList = () => {
 
   // Toggle suspension mutation
   const toggleSuspensionMutation = useMutation({
-    mutationFn: ({ id, isSuspended }: { id: number, isSuspended: boolean }) => 
+    mutationFn: ({ id, isSuspended }: { id: number, isSuspended: boolean }) =>
       patch(`/players/${id}/suspension`, { isSuspended }),
     onSuccess: () => {
       toast.success("Player status updated successfully");
@@ -195,7 +195,7 @@ const PlayerList = () => {
 
   // Toggle Aadhar verification mutation
   const toggleAadharVerificationMutation = useMutation({
-    mutationFn: ({ id, aadharVerified }: { id: number, aadharVerified: boolean }) => 
+    mutationFn: ({ id, aadharVerified }: { id: number, aadharVerified: boolean }) =>
       patch(`/players/${id}/aadhar-verification`, { aadharVerified }),
     onSuccess: () => {
       toast.success("Aadhar verification status updated successfully");
@@ -289,11 +289,11 @@ const PlayerList = () => {
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    
+
     return age;
   };
 
@@ -485,6 +485,7 @@ const PlayerList = () => {
                                 value="All Regions"
                                 onSelect={() => {
                                   setRegionId("");
+                                  setClubId("");
                                   setPage(1);
                                 }}
                               >
@@ -497,6 +498,7 @@ const PlayerList = () => {
                                   value={`${region.regionName} ${region.taluka?.talukaName || ""}`.trim()}
                                   onSelect={() => {
                                     setRegionId(String(region.id));
+                                    setClubId(""); // Reset club when region changes
                                     setPage(1);
                                   }}
                                 >
@@ -530,6 +532,13 @@ const PlayerList = () => {
                     </span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="p-0 w-89">
+                    <div className="px-3 py-2 text-xs text-muted-foreground border-b bg-muted/30">
+                      {regionId ? (
+                        <>Clubs from <span className="font-medium text-foreground">{(regionsData || []).find((r: any) => String(r.id) === String(regionId))?.regionName}</span></>
+                      ) : (
+                        "All clubs (Filter via Region to narrow)"
+                      )}
+                    </div>
                     <Command className="w-89">
                       <CommandInput placeholder={isLoadingClubs ? "Loading clubs..." : "Search club..."} />
                       <CommandList className="max-h-[260px]">
@@ -545,33 +554,40 @@ const PlayerList = () => {
                             <Check className={cn("mr-2 h-4 w-4", !clubId ? "opacity-100" : "opacity-0")} />
                             All Clubs
                           </CommandItem>
-                          {(clubsData || []).map((club: any) => {
-                            const placeName = club?.place?.placeName;
-                            const regionName = club?.place?.region?.regionName;
-                            const rightText = [regionName, placeName].filter(Boolean).join(" • ");
+                          {(clubsData || [])
+                            .filter((club: any) => {
+                              if (!regionId) return true;
+                              // Check if club's region matches selected regionId
+                              // structure: club.place.region.id
+                              return String(club?.place?.region?.id) === String(regionId);
+                            })
+                            .map((club: any) => {
+                              const placeName = club?.place?.placeName;
+                              const regionName = club?.place?.region?.regionName;
+                              const rightText = [regionName, placeName].filter(Boolean).join(" • ");
 
-                            return (
-                              <CommandItem
-                                key={club.id}
-                                value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
-                                onSelect={() => {
-                                  setClubId(String(club.id));
-                                  setPage(1);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    String(club.id) === String(clubId) ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                <span className="flex-1 truncate">{club.clubName}</span>
-                                {rightText ? (
-                                  <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
-                                ) : null}
-                              </CommandItem>
-                            );
-                          })}
+                              return (
+                                <CommandItem
+                                  key={club.id}
+                                  value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
+                                  onSelect={() => {
+                                    setClubId(String(club.id));
+                                    setPage(1);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      String(club.id) === String(clubId) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <span className="flex-1 truncate">{club.clubName}</span>
+                                  {rightText ? (
+                                    <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
+                                  ) : null}
+                                </CommandItem>
+                              );
+                            })}
                         </CommandGroup>
                       </CommandList>
                     </Command>
@@ -778,16 +794,16 @@ const PlayerList = () => {
               {isSuspended !== undefined && (
                 <Badge variant="outline" className="flex items-center gap-1">
                   {isSuspended ? 'Suspended' : 'Active'}
-                  <button 
+                  <button
                     onClick={() => setIsSuspended(undefined)}
                   >
                     <XCircle className="h-3 w-3" />
                   </button>
                 </Badge>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-6 px-2 text-xs"
                 onClick={() => {
                   setIsSuspended(undefined);
@@ -862,7 +878,7 @@ const PlayerList = () => {
                           {/* Profile Image */}
                           <div className="flex-shrink-0">
                             {player.profileImage ? (
-                              <img 
+                              <img
                                 src={resolveUploadUrl(player.profileImage)}
                                 alt={`${player.firstName} ${player.lastName}`}
                                 className="w-8 h-8 rounded-full object-cover border cursor-pointer transition-transform hover:scale-105"
@@ -954,7 +970,7 @@ const PlayerList = () => {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              
+
                               {/* Toggle Suspension */}
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -978,7 +994,7 @@ const PlayerList = () => {
                                       {player.isSuspended ? "Activate Player" : "Suspend Player"}
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      {player.isSuspended 
+                                      {player.isSuspended
                                         ? `Are you sure you want to activate ${player.firstName} ${player.lastName}?`
                                         : `Are you sure you want to suspend ${player.firstName} ${player.lastName}? This will prevent them from participating in competitions.`
                                       }
