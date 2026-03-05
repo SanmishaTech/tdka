@@ -70,16 +70,45 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const PlayerList = () => {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [limit, setLimit] = useState(10);
-  const [sortBy, setSortBy] = useState("firstName");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [isSuspended, setIsSuspended] = useState<boolean | undefined>(undefined);
-  const [aadharVerified, setAadharVerified] = useState<boolean | undefined>(undefined);
-  const [clubId, setClubId] = useState<string>("");
-  const [groupId, setGroupId] = useState<string>("");
-  const [regionId, setRegionId] = useState<string>("");
+  const [page, setPage] = useState(() => Number(sessionStorage.getItem("players_page")) || 1);
+  const [search, setSearch] = useState(() => sessionStorage.getItem("players_search") || "");
+  const [limit, setLimit] = useState(() => Number(sessionStorage.getItem("players_limit")) || 10);
+  const [sortBy, setSortBy] = useState(() => sessionStorage.getItem("players_sortBy") || "firstName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(() => (sessionStorage.getItem("players_sortOrder") as "asc" | "desc") || "asc");
+  const [isSuspended, setIsSuspended] = useState<boolean | undefined>(() => {
+    const val = sessionStorage.getItem("players_isSuspended");
+    return val === "true" ? true : val === "false" ? false : undefined;
+  });
+  const [aadharVerified, setAadharVerified] = useState<boolean | undefined>(() => {
+    const val = sessionStorage.getItem("players_aadharVerified");
+    return val === "true" ? true : val === "false" ? false : undefined;
+  });
+  const [clubId, setClubId] = useState<string>(() => sessionStorage.getItem("players_clubId") || "");
+  const [groupId, setGroupId] = useState<string>(() => sessionStorage.getItem("players_groupId") || "");
+  const [regionId, setRegionId] = useState<string>(() => sessionStorage.getItem("players_regionId") || "");
+
+  // Sync state to sessionStorage
+  React.useEffect(() => {
+    sessionStorage.setItem("players_page", page.toString());
+    sessionStorage.setItem("players_search", search);
+    sessionStorage.setItem("players_limit", limit.toString());
+    sessionStorage.setItem("players_sortBy", sortBy);
+    sessionStorage.setItem("players_sortOrder", sortOrder);
+    if (isSuspended !== undefined) {
+      sessionStorage.setItem("players_isSuspended", isSuspended.toString());
+    } else {
+      sessionStorage.removeItem("players_isSuspended");
+    }
+    if (aadharVerified !== undefined) {
+      sessionStorage.setItem("players_aadharVerified", aadharVerified.toString());
+    } else {
+      sessionStorage.removeItem("players_aadharVerified");
+    }
+    sessionStorage.setItem("players_clubId", clubId);
+    sessionStorage.setItem("players_groupId", groupId);
+    sessionStorage.setItem("players_regionId", regionId);
+  }, [page, search, limit, sortBy, sortOrder, isSuspended, aadharVerified, clubId, groupId, regionId]);
+
   const [isExporting, setIsExporting] = useState(false);
   const [isExportPopoverOpen, setIsExportPopoverOpen] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
@@ -182,7 +211,7 @@ const PlayerList = () => {
 
   // Toggle suspension mutation
   const toggleSuspensionMutation = useMutation({
-    mutationFn: ({ id, isSuspended }: { id: number, isSuspended: boolean }) => 
+    mutationFn: ({ id, isSuspended }: { id: number, isSuspended: boolean }) =>
       patch(`/players/${id}/suspension`, { isSuspended }),
     onSuccess: () => {
       toast.success("Player status updated successfully");
@@ -195,7 +224,7 @@ const PlayerList = () => {
 
   // Toggle Aadhar verification mutation
   const toggleAadharVerificationMutation = useMutation({
-    mutationFn: ({ id, aadharVerified }: { id: number, aadharVerified: boolean }) => 
+    mutationFn: ({ id, aadharVerified }: { id: number, aadharVerified: boolean }) =>
       patch(`/players/${id}/aadhar-verification`, { aadharVerified }),
     onSuccess: () => {
       toast.success("Aadhar verification status updated successfully");
@@ -289,11 +318,11 @@ const PlayerList = () => {
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    
+
     return age;
   };
 
@@ -444,10 +473,17 @@ const PlayerList = () => {
             {/* Filter Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant={activeFilterCount > 0 ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "transition-all duration-300",
+                    activeFilterCount > 0 && "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white font-medium shadow-md shadow-emerald-100"
+                  )}
+                >
                   Filters
                   {activeFilterCount > 0 && (
-                    <Badge variant="secondary" className="ml-2 px-1 py-0 h-5">
+                    <Badge variant="secondary" className="ml-2 px-1.5 py-0 h-5 bg-white text-emerald-700 font-bold">
                       {activeFilterCount}
                     </Badge>
                   )}
@@ -732,62 +768,74 @@ const PlayerList = () => {
             <div className="flex flex-wrap gap-2 mb-4">
               <div className="text-sm text-muted-foreground">Active filters:</div>
               {regionId && (
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1">
                   Region: {(regionsData || []).find((r: any) => String(r.id) === String(regionId))?.regionName || regionId}
                   <button
                     onClick={() => {
                       setRegionId("");
                       setPage(1);
                     }}
-                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                    className="ml-1 rounded-full hover:bg-emerald-200 transition-colors p-0.5"
                   >
-                    <XCircle className="h-3 w-3" />
+                    <XCircle className="h-3.5 w-3.5 text-emerald-600" />
                   </button>
                 </Badge>
               )}
               {isAdmin && clubId && (
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1">
                   Club: {(clubsData || []).find((c: any) => String(c.id) === String(clubId))?.clubName || clubId}
                   <button
                     onClick={() => {
                       setClubId("");
                       setPage(1);
                     }}
-                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                    className="ml-1 rounded-full hover:bg-emerald-200 transition-colors p-0.5"
                   >
-                    <XCircle className="h-3 w-3" />
+                    <XCircle className="h-3.5 w-3.5 text-emerald-600" />
                   </button>
                 </Badge>
               )}
 
               {groupId && (
-                <Badge variant="outline" className="flex items-center gap-1">
+                <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1">
                   Group: {(groupsData || []).find((g: any) => String(g.id) === String(groupId))?.groupName || groupId}
                   <button
                     onClick={() => {
                       setGroupId("");
                       setPage(1);
                     }}
-                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                    className="ml-1 rounded-full hover:bg-emerald-200 transition-colors p-0.5"
                   >
-                    <XCircle className="h-3 w-3" />
+                    <XCircle className="h-3.5 w-3.5 text-emerald-600" />
                   </button>
                 </Badge>
               )}
 
               {isSuspended !== undefined && (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  {isSuspended ? 'Suspended' : 'Active'}
-                  <button 
+                <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1">
+                  Status: {isSuspended ? 'Suspended' : 'Active'}
+                  <button
                     onClick={() => setIsSuspended(undefined)}
+                    className="ml-1 rounded-full hover:bg-emerald-200 transition-colors p-0.5"
                   >
-                    <XCircle className="h-3 w-3" />
+                    <XCircle className="h-3.5 w-3.5 text-emerald-600" />
                   </button>
                 </Badge>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              {aadharVerified !== undefined && (
+                <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1">
+                  Aadhar: {aadharVerified ? 'Verified' : 'Unverified'}
+                  <button
+                    onClick={() => setAadharVerified(undefined)}
+                    className="ml-1 rounded-full hover:bg-emerald-200 transition-colors p-0.5"
+                  >
+                    <XCircle className="h-3.5 w-3.5 text-emerald-600" />
+                  </button>
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-6 px-2 text-xs"
                 onClick={() => {
                   setIsSuspended(undefined);
@@ -862,7 +910,7 @@ const PlayerList = () => {
                           {/* Profile Image */}
                           <div className="flex-shrink-0">
                             {player.profileImage ? (
-                              <img 
+                              <img
                                 src={resolveUploadUrl(player.profileImage)}
                                 alt={`${player.firstName} ${player.lastName}`}
                                 className="w-8 h-8 rounded-full object-cover border cursor-pointer transition-transform hover:scale-105"
@@ -954,7 +1002,7 @@ const PlayerList = () => {
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuSeparator />
-                              
+
                               {/* Toggle Suspension */}
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -978,7 +1026,7 @@ const PlayerList = () => {
                                       {player.isSuspended ? "Activate Player" : "Suspend Player"}
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      {player.isSuspended 
+                                      {player.isSuspended
                                         ? `Are you sure you want to activate ${player.firstName} ${player.lastName}?`
                                         : `Are you sure you want to suspend ${player.firstName} ${player.lastName}? This will prevent them from participating in competitions.`
                                       }
