@@ -67,7 +67,14 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const PlayerList = () => {
   const [page, setPage] = useState(() => Number(sessionStorage.getItem("players_page")) || 1);
@@ -117,6 +124,16 @@ const PlayerList = () => {
   const [isPhotoPreviewOpen, setIsPhotoPreviewOpen] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>("");
   const [photoPreviewTitle, setPhotoPreviewTitle] = useState<string>("");
+
+  const [isVerifyScriptOpen, setIsVerifyScriptOpen] = useState(false);
+  const [verifyScriptLogs, setVerifyScriptLogs] = useState<{ type: string; message: string }[]>([]);
+  const [isVerifyScriptRunning, setIsVerifyScriptRunning] = useState(false);
+  const verifyScriptLogsEndRef = useRef<HTMLDivElement>(null);
+  const verifyEventSourceRef = useRef<EventSource | null>(null);
+  const [showPasswordStep, setShowPasswordStep] = useState(true);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
 
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
@@ -208,6 +225,14 @@ const PlayerList = () => {
     enabled: isAdmin,
     refetchOnWindowFocus: false,
   });
+
+  const { data: aadharConfig } = useQuery({
+    queryKey: ["aadhar-config"],
+    queryFn: () => get("/players/aadhar-config"),
+    refetchOnWindowFocus: false,
+  });
+
+  const isAadharAutoVerifyEnabled = aadharConfig?.enabled === true;
 
   // Toggle suspension mutation
   const toggleSuspensionMutation = useMutation({
@@ -324,6 +349,98 @@ const PlayerList = () => {
     }
 
     return age;
+  };
+
+  // Open the dialog (without starting the script) — reset to password step
+  const handleOpenVerifyDialog = () => {
+    setVerifyScriptLogs([]);
+    setIsVerifyScriptRunning(false);
+    setShowPasswordStep(true);
+    setAdminPassword("");
+    setPasswordError("");
+    setIsVerifyScriptOpen(true);
+  };
+
+  // Stop the running verification script
+  const handleStopVerifyScript = () => {
+    if (verifyEventSourceRef.current) {
+      verifyEventSourceRef.current.close();
+      verifyEventSourceRef.current = null;
+    }
+    setIsVerifyScriptRunning(false);
+    setVerifyScriptLogs((prev) => [...prev, { type: 'stopped', message: 'Script stopped by user.' }]);
+  };
+
+  // Verify admin password before running the script
+  const handleVerifyPassword = async () => {
+    if (!adminPassword.trim()) {
+      setPasswordError('Please enter your password.');
+      return;
+    }
+    setIsVerifyingPassword(true);
+    setPasswordError("");
+    try {
+      const token = localStorage.getItem("authToken") || "";
+      const resp = await fetch(`${backendBaseUrl}/api/players/verify-admin-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setShowPasswordStep(false);
+        setAdminPassword("");
+      } else {
+        setPasswordError(data.message || 'Incorrect password.');
+      }
+    } catch (e) {
+      setPasswordError('Could not verify password. Check your connection.');
+    } finally {
+      setIsVerifyingPassword(false);
+    }
+  };
+
+  // Actually start the script via SSE
+  const handleRunVerifyScript = () => {
+    setVerifyScriptLogs([]);
+    setIsVerifyScriptRunning(true);
+
+    // EventSource cannot send custom headers, so pass the JWT token as a query param
+    const token = localStorage.getItem("authToken") || "";
+    const eventSource = new EventSource(`${backendBaseUrl}/api/players/run-aadhar-script?token=${encodeURIComponent(token)}`);
+    verifyEventSourceRef.current = eventSource;
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setVerifyScriptLogs((prev) => [...prev, data]);
+        // Auto-scroll
+        setTimeout(() => {
+          verifyScriptLogsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+
+        if (data.type === 'done' || (data.type === 'error' && data.message.startsWith('Failed to start'))) {
+          setIsVerifyScriptRunning(false);
+          verifyEventSourceRef.current = null;
+          eventSource.close();
+          if (data.type === 'done') {
+            queryClient.invalidateQueries({ queryKey: ["players"] }); // Refresh list
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing SSE data", e);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("SSE Error", err);
+      setIsVerifyScriptRunning(false);
+      verifyEventSourceRef.current = null;
+      eventSource.close();
+    };
   };
 
   // Handle error
@@ -770,6 +887,18 @@ const PlayerList = () => {
               </Popover>
             )}
 
+            {isAdmin && isAadharAutoVerifyEnabled && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
+                onClick={handleOpenVerifyDialog}
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Verify All
+              </Button>
+            )}
+
             {/* Add Button */}
             <Button
               onClick={() => navigate('/players/create')}
@@ -1133,6 +1262,223 @@ const PlayerList = () => {
                   />
                 ) : null}
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Script Execution Dialog */}
+          <Dialog open={isVerifyScriptOpen} onOpenChange={(open) => {
+            if (!isVerifyScriptRunning) setIsVerifyScriptOpen(open);
+          }}>
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-lg">
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                  Aadhar Auto-Verification
+                </DialogTitle>
+                <DialogDescription>
+                  {showPasswordStep
+                    ? "This action is restricted to admins. Please confirm your password to continue."
+                    : "Automatically verifies all unverified players using the Cashfree OCR API."}
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Password Confirmation Step */}
+              {showPasswordStep ? (
+                <div className="flex flex-col gap-4 py-4">
+                  <div className="flex items-start gap-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <Ban className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">Admin Authentication Required</p>
+                      <p className="text-xs text-amber-700 mt-1">
+                        This script will update the verification status of players in the database. Enter your admin password to proceed.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-slate-700">Admin Password</label>
+                    <Input
+                      type="password"
+                      placeholder="Enter your password..."
+                      value={adminPassword}
+                      onChange={(e) => { setAdminPassword(e.target.value); setPasswordError(""); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleVerifyPassword(); }}
+                      className={passwordError ? "border-red-400 focus-visible:ring-red-300" : ""}
+                    />
+                    {passwordError && (
+                      <p className="text-xs text-red-600 flex items-center gap-1">
+                        <XCircle className="h-3.5 w-3.5" />
+                        {passwordError}
+                      </p>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsVerifyScriptOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleVerifyPassword}
+                      disabled={isVerifyingPassword}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {isVerifyingPassword ? (
+                        <><LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> Verifying...</>
+                      ) : (
+                        <><CheckCircle className="mr-2 h-4 w-4" /> Confirm</>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              ) : (
+                <>
+
+                  {/* Stats Bar */}
+                  {verifyScriptLogs.length > 0 && (
+                    <div className="flex gap-3 px-1">
+                      {[
+                        { label: 'Verified', type: 'success', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                        { label: 'Skipped', type: 'skip', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+                        { label: 'Failed', type: 'failed', color: 'bg-red-50 text-red-700 border-red-200' },
+                      ].map(({ label, type, color }) => {
+                        const count = verifyScriptLogs.filter(l => {
+                          const m = l.message.toUpperCase();
+                          if (type === 'success') return m.startsWith('[SUCCESS]');
+                          if (type === 'skip') return m.startsWith('[SKIP]');
+                          if (type === 'failed') return m.startsWith('[FAILED]') || m.startsWith('[MISMATCH]');
+                          return false;
+                        }).length;
+                        return (
+                          <div key={type} className={cn("flex items-center gap-1.5 border rounded-md px-3 py-1 text-sm font-medium", color)}>
+                            <span>{count}</span>
+                            <span>{label}</span>
+                          </div>
+                        );
+                      })}
+                      {isVerifyScriptRunning && (
+                        <div className="flex items-center gap-1.5 border rounded-md px-3 py-1 text-sm font-medium bg-blue-50 text-blue-700 border-blue-200 ml-auto animate-pulse">
+                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                          Running
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Log List */}
+                  <div className="flex-1 overflow-y-auto border rounded-lg bg-slate-50 divide-y min-h-[350px] max-h-[400px]">
+                    {verifyScriptLogs.length === 0 && !isVerifyScriptRunning && (
+                      <div className="flex flex-col items-center justify-center h-full py-16 text-muted-foreground gap-3">
+                        <CheckCircle className="h-10 w-10 text-emerald-200" />
+                        <p className="text-sm">Click <strong>Run Script</strong> to start verifying unverified players.</p>
+                      </div>
+                    )}
+                    {verifyScriptLogs.map((log, index) => {
+                      const msg = log.message;
+                      const upper = msg.toUpperCase();
+                      let icon = null;
+                      let bgClass = "";
+                      let textClass = "text-slate-700";
+                      let badgeClass = "";
+                      let badge = "";
+
+                      if (upper.startsWith('[SUCCESS]')) {
+                        icon = <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />;
+                        bgClass = "bg-emerald-50";
+                        textClass = "text-emerald-700";
+                        badgeClass = "bg-emerald-100 text-emerald-700";
+                        badge = "SUCCESS";
+                      } else if (upper.startsWith('[SKIP]')) {
+                        icon = <XCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />;
+                        bgClass = "bg-amber-50/50";
+                        textClass = "text-amber-700";
+                        badgeClass = "bg-amber-100 text-amber-700";
+                        badge = "SKIP";
+                      } else if (upper.startsWith('[MISMATCH]') || upper.startsWith('[FAILED]')) {
+                        icon = <Ban className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />;
+                        bgClass = "bg-red-50/50";
+                        textClass = "text-red-700";
+                        badgeClass = "bg-red-100 text-red-700";
+                        badge = upper.startsWith('[MISMATCH]') ? "MISMATCH" : "FAILED";
+                      } else if (upper.startsWith('[VERIFYING]')) {
+                        icon = <LoaderCircle className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />;
+                        bgClass = "bg-blue-50/30";
+                        textClass = "text-blue-700";
+                        badgeClass = "bg-blue-100 text-blue-700";
+                        badge = "VERIFYING";
+                      } else if (upper.startsWith('[ERROR]')) {
+                        icon = <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />;
+                        bgClass = "bg-red-100/50";
+                        textClass = "text-red-800";
+                        badgeClass = "bg-red-200 text-red-800";
+                        badge = "ERROR";
+                      } else if (log.type === 'done') {
+                        icon = <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />;
+                        bgClass = "bg-emerald-100/60";
+                        textClass = "text-emerald-800 font-semibold";
+                        badge = "";
+                      } else if (log.type === 'stopped') {
+                        icon = <Ban className="h-4 w-4 text-orange-500 flex-shrink-0 mt-0.5" />;
+                        bgClass = "bg-orange-50";
+                        textClass = "text-orange-700 font-medium";
+                        badge = "";
+                      } else if (log.type === 'connected') {
+                        icon = <CheckCircle className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />;
+                        bgClass = "";
+                        textClass = "text-slate-500 text-xs";
+                        badge = "";
+                      } else {
+                        icon = <LoaderCircle className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />;
+                      }
+
+                      // Clean up prefix tags from message
+                      const cleanMsg = msg
+                        .replace(/^\[(SUCCESS|SKIP|MISMATCH|FAILED|VERIFYING|ERROR)\]\s*/i, '')
+                        .trim();
+
+                      return (
+                        <div key={index} className={cn("flex items-start gap-3 px-4 py-2.5", bgClass)}>
+                          {icon}
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("text-sm leading-snug break-words", textClass)}>{cleanMsg || msg}</p>
+                          </div>
+                          {badge && (
+                            <span className={cn("text-xs font-semibold rounded px-1.5 py-0.5 flex-shrink-0", badgeClass)}>
+                              {badge}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div ref={verifyScriptLogsEndRef} />
+                  </div>
+
+                  <DialogFooter className="flex gap-2 items-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsVerifyScriptOpen(false)}
+                      disabled={isVerifyScriptRunning}
+                      className="mr-auto"
+                    >
+                      Close
+                    </Button>
+                    {isVerifyScriptRunning ? (
+                      <Button
+                        onClick={handleStopVerifyScript}
+                        className="bg-red-500 hover:bg-red-600 text-white"
+                      >
+                        <Ban className="mr-2 h-4 w-4" />
+                        Stop
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleRunVerifyScript}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Run Script
+                      </Button>
+                    )}
+                  </DialogFooter>
+                </>
+              )}
             </DialogContent>
           </Dialog>
 
