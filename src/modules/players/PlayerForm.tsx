@@ -10,6 +10,7 @@ import { LoaderCircle, Check, ArrowLeft, Upload, X, ChevronsUpDown } from "lucid
 // Shadcn UI components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatetimePicker } from "@/components/ui/datetime-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -861,11 +862,28 @@ const PlayerForm = ({
                       <FormItem>
                         <FormLabel>Date Of Birth (According to Aadhar) <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="Enter date of birth"
-                            {...field}
-                            disabled={isFormLoading || aadharVerified}
-                            type="date"
+                          <DatetimePicker
+                            key={field.value || "empty"}
+                            value={field.value ? new Date(field.value + "T00:00:00") : undefined}
+                            onChange={(date) => {
+                              if (date) {
+                                const year = date.getFullYear();
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const day = String(date.getDate()).padStart(2, '0');
+                                field.onChange(`${year}-${month}-${day}`);
+                              } else {
+                                field.onChange("");
+                              }
+                            }}
+                            format={[
+                              ["days", "months", "years"],
+                              []
+                            ]}
+                            placeholders={{
+                              days: "DD", months: "MM", years: "YYYY",
+                              hours: "", minutes: "", seconds: "", "am/pm": ""
+                            }}
+                            className="border-input"
                           />
                         </FormControl>
                         <FormMessage />

@@ -75,43 +75,43 @@ const DatetimeGrid = forwardRef<
       >
         {!!format?.length
           ? format.map((group, i) => (
-              <React.Fragment key={i === 0 ? "dates" : "times"}>
-                {!!group?.length
-                  ? group.map((unit, j) => (
-                      <React.Fragment key={unit}>
-                        <Input
-                          className={cn(timePickerInputBase, "min-w-8", {
-                            "min-w-12": unit === "years",
-                            "bg-foreground/15": unit === "am/pm",
-                          })}
-                          {...timescape.getInputProps(unit)}
-                          placeholder={placeholders[unit]}
-                        />
-                        {i === 0 && j < group.length - 1 ? (
-                          // date separator
-                          <span className={timePickerSeparatorBase}>/</span>
-                        ) : (
-                          j < group.length - 2 && (
-                            // time separator
-                            <span className={timePickerSeparatorBase}>:</span>
-                          )
-                        )}
-                      </React.Fragment>
-                    ))
-                  : null}
-                {format[1]?.length && !i ? (
-                  // date-time separator - only if both date and time are present
-                  <span
-                    className={cn(
-                      timePickerSeparatorBase,
-                      "opacity-30 text-xl",
+            <React.Fragment key={i === 0 ? "dates" : "times"}>
+              {!!group?.length
+                ? group.map((unit, j) => (
+                  <React.Fragment key={unit}>
+                    <Input
+                      className={cn(timePickerInputBase, "min-w-8", {
+                        "min-w-12": unit === "years",
+                        "bg-foreground/15": unit === "am/pm",
+                      })}
+                      {...timescape.getInputProps(unit)}
+                      placeholder={placeholders[unit]}
+                    />
+                    {i === 0 && j < group.length - 1 ? (
+                      // date separator
+                      <span className={timePickerSeparatorBase}>/</span>
+                    ) : (
+                      j < group.length - 2 && (
+                        // time separator
+                        <span className={timePickerSeparatorBase}>:</span>
+                      )
                     )}
-                  >
-                    |
-                  </span>
-                ) : null}
-              </React.Fragment>
-            ))
+                  </React.Fragment>
+                ))
+                : null}
+              {format[1]?.length && !i ? (
+                // date-time separator - only if both date and time are present
+                <span
+                  className={cn(
+                    timePickerSeparatorBase,
+                    "opacity-30 text-xl",
+                  )}
+                >
+                  |
+                </span>
+              ) : null}
+            </React.Fragment>
+          ))
           : null}
       </div>
     );

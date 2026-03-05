@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { LoaderCircle } from "lucide-react";
+import { DatetimePicker } from "@/components/ui/datetime-picker";
 import type { ActivityLog, ActivityLogsResponse } from "./types";
 
 const safeParseChanges = (raw: string | null | undefined): Record<string, any> | null => {
@@ -225,27 +226,51 @@ const ActivityLogList = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="flex flex-col gap-1">
                 <Label htmlFor="activity-from">From date</Label>
-                <Input
-                  id="activity-from"
-                  type="date"
-                  value={from}
-                  onChange={(e) => {
-                    setFrom(e.target.value);
+                <DatetimePicker
+                  value={from ? new Date(from) : undefined}
+                  onChange={(date) => {
+                    if (date) {
+                      const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                      setFrom(offsetDate.toISOString().split('T')[0]);
+                    } else {
+                      setFrom("");
+                    }
                     setPage(1);
                   }}
+                  format={[
+                    ["days", "months", "years"],
+                    []
+                  ]}
+                  placeholders={{
+                    days: "DD", months: "MM", years: "YYYY",
+                    hours: "", minutes: "", seconds: "", "am/pm": ""
+                  }}
+                  className="border-input"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
                 <Label htmlFor="activity-to">To date</Label>
-                <Input
-                  id="activity-to"
-                  type="date"
-                  value={to}
-                  onChange={(e) => {
-                    setTo(e.target.value);
+                <DatetimePicker
+                  value={to ? new Date(to) : undefined}
+                  onChange={(date) => {
+                    if (date) {
+                      const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+                      setTo(offsetDate.toISOString().split('T')[0]);
+                    } else {
+                      setTo("");
+                    }
                     setPage(1);
                   }}
+                  format={[
+                    ["days", "months", "years"],
+                    []
+                  ]}
+                  placeholders={{
+                    days: "DD", months: "MM", years: "YYYY",
+                    hours: "", minutes: "", seconds: "", "am/pm": ""
+                  }}
+                  className="border-input"
                 />
               </div>
             </div>

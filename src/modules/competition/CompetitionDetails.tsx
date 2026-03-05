@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { LoaderCircle, ArrowLeft, Calendar, Users, Trophy, MapPin, Download, Info } from "lucide-react";
 import { get } from "@/services/apiService";
+import { backendUrl } from "@/config";
 
 const CompetitionDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -191,6 +192,30 @@ const CompetitionDetails = () => {
           Back to Competitions
         </Button>
       </div>
+
+      {/* Competition Banner */}
+      {competition?.banner && (
+        <div
+          className="relative w-full h-48 md:h-64 lg:h-80 rounded-xl overflow-hidden bg-background cursor-pointer hover:opacity-95 transition-opacity"
+          onClick={() => window.open(`${backendUrl}/${competition.banner}`, '_blank')}
+          title="Click to view full image"
+        >
+          <img
+            src={`${backendUrl}/${competition.banner}`}
+            alt={`${competition?.competitionName} Banner`}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute bottom-4 left-4 text-white">
+            <h1 className="text-2xl md:text-3xl font-bold">{competition?.competitionName}</h1>
+            <p className="text-sm opacity-90">Competition Details and Information</p>
+          </div>
+        </div>
+      )}
 
       {/* Competition Overview */}
       <Card>

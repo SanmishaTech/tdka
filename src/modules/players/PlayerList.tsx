@@ -521,6 +521,7 @@ const PlayerList = () => {
                                 value="All Regions"
                                 onSelect={() => {
                                   setRegionId("");
+                                  setClubId("");
                                   setPage(1);
                                 }}
                               >
@@ -533,6 +534,7 @@ const PlayerList = () => {
                                   value={`${region.regionName} ${region.taluka?.talukaName || ""}`.trim()}
                                   onSelect={() => {
                                     setRegionId(String(region.id));
+                                    setClubId(""); // Reset club when region changes
                                     setPage(1);
                                   }}
                                 >
@@ -566,6 +568,13 @@ const PlayerList = () => {
                     </span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="p-0 w-89">
+                    <div className="px-3 py-2 text-xs text-muted-foreground border-b bg-muted/30">
+                      {regionId ? (
+                        <>Clubs from <span className="font-medium text-foreground">{(regionsData || []).find((r: any) => String(r.id) === String(regionId))?.regionName}</span></>
+                      ) : (
+                        "All clubs (Filter via Region to narrow)"
+                      )}
+                    </div>
                     <Command className="w-89">
                       <CommandInput placeholder={isLoadingClubs ? "Loading clubs..." : "Search club..."} />
                       <CommandList className="max-h-[260px]">
@@ -581,33 +590,40 @@ const PlayerList = () => {
                             <Check className={cn("mr-2 h-4 w-4", !clubId ? "opacity-100" : "opacity-0")} />
                             All Clubs
                           </CommandItem>
-                          {(clubsData || []).map((club: any) => {
-                            const placeName = club?.place?.placeName;
-                            const regionName = club?.place?.region?.regionName;
-                            const rightText = [regionName, placeName].filter(Boolean).join(" • ");
+                          {(clubsData || [])
+                            .filter((club: any) => {
+                              if (!regionId) return true;
+                              // Check if club's region matches selected regionId
+                              // structure: club.place.region.id
+                              return String(club?.place?.region?.id) === String(regionId);
+                            })
+                            .map((club: any) => {
+                              const placeName = club?.place?.placeName;
+                              const regionName = club?.place?.region?.regionName;
+                              const rightText = [regionName, placeName].filter(Boolean).join(" • ");
 
-                            return (
-                              <CommandItem
-                                key={club.id}
-                                value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
-                                onSelect={() => {
-                                  setClubId(String(club.id));
-                                  setPage(1);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    String(club.id) === String(clubId) ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                <span className="flex-1 truncate">{club.clubName}</span>
-                                {rightText ? (
-                                  <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
-                                ) : null}
-                              </CommandItem>
-                            );
-                          })}
+                              return (
+                                <CommandItem
+                                  key={club.id}
+                                  value={`${club.clubName} ${regionName || ""} ${placeName || ""}`.trim()}
+                                  onSelect={() => {
+                                    setClubId(String(club.id));
+                                    setPage(1);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      String(club.id) === String(clubId) ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <span className="flex-1 truncate">{club.clubName}</span>
+                                  {rightText ? (
+                                    <span className="ml-2 text-xs text-muted-foreground truncate">{rightText}</span>
+                                  ) : null}
+                                </CommandItem>
+                              );
+                            })}
                         </CommandGroup>
                       </CommandList>
                     </Command>
@@ -812,8 +828,8 @@ const PlayerList = () => {
               )}
 
               {isSuspended !== undefined && (
-                <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-1">
-                  Status: {isSuspended ? 'Suspended' : 'Active'}
+                <Badge variant="outline" className="flex items-center gap-1">
+                  {isSuspended ? 'Suspended' : 'Active'}
                   <button
                     onClick={() => setIsSuspended(undefined)}
                     className="ml-1 rounded-full hover:bg-emerald-200 transition-colors p-0.5"

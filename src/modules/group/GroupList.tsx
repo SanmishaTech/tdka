@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,10 +15,44 @@ import {
   LoaderCircle,
   Search,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  PenSquare
 } from "lucide-react";
 import CustomPagination from "@/components/common/custom-pagination";
-import { get } from "@/services/apiService";
+import { get, put } from "@/services/apiService";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+
+const editGroupSchema = z.object({
+  groupName: z.string(),
+  gender: z.string(),
+  age: z.string().min(1, "Age limit is required"),
+  ageType: z.enum(["UNDER", "ABOVE"]).optional(),
+});
 
 const GroupList = () => {
   const [page, setPage] = useState(1);
@@ -26,6 +60,8 @@ const GroupList = () => {
   const [limit, setLimit] = useState(10);
   const [sortBy, setSortBy] = useState("groupName");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [editingGroup, setEditingGroup] = useState<any>(null);
+
   const queryClient = useQueryClient();
 
   // Fetch groups
@@ -38,6 +74,52 @@ const GroupList = () => {
     queryKey: ["groups", page, limit, search, sortBy, sortOrder],
     queryFn: () => get("/groups", { page, limit, search, sortBy, sortOrder }),
   });
+
+  const form = useForm<z.infer<typeof editGroupSchema>>({
+    resolver: zodResolver(editGroupSchema),
+    defaultValues: {
+      groupName: "",
+      gender: "",
+      age: "",
+      ageType: undefined,
+    },
+  });
+
+  // Update mutation
+  const updateGroupMutation = useMutation({
+    mutationFn: (values: z.infer<typeof editGroupSchema>) => {
+      // We must send the whole object generally, or at least what the backend expects
+      // Using values form the form which includes proper groupName/gender from state
+      return put(`/groups/${editingGroup.id}`, values);
+    },
+    onSuccess: () => {
+      toast.success("Group updated successfully");
+      setEditingGroup(null);
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update group");
+    }
+  });
+
+  useEffect(() => {
+    if (editingGroup) {
+      form.reset({
+        groupName: editingGroup.groupName,
+        gender: editingGroup.gender,
+        age: editingGroup.age,
+        ageType: editingGroup.ageType || undefined,
+      });
+    }
+  }, [editingGroup, form]);
+
+  const handleEdit = (group: any) => {
+    setEditingGroup(group);
+  };
+
+  const onSubmit = (values: z.infer<typeof editGroupSchema>) => {
+    updateGroupMutation.mutate(values);
+  };
 
   // Handle search input
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,23 +226,22 @@ const GroupList = () => {
                       </span>
                     )}
                   </TableHead>
+                  <TableHead className="w-12">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       <LoaderCircle className="h-6 w-6 animate-spin mx-auto" />
                       <p className="mt-2">Loading groups...</p>
                     </TableCell>
                   </TableRow>
                 ) : data?.groups?.length === 0 ? (
                   <TableRow>
-                    <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
-                        No groups found.
-                      </TableCell>
-                    </TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      No groups found.
+                    </TableCell>
                   </TableRow>
                 ) : (
                   data?.groups?.map((group: any) => (
@@ -172,6 +253,17 @@ const GroupList = () => {
                       </TableCell>
                       <TableCell>
                         {group.age}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(group)}
+                          className="h-8 w-8"
+                        >
+                          <PenSquare className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -196,6 +288,81 @@ const GroupList = () => {
         </CardContent>
       </Card>
 
+      {/* Edit Dialog */}
+      <Dialog open={!!editingGroup} onOpenChange={(open) => !open && setEditingGroup(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Group: {editingGroup?.groupName}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {/* Hidden Fields for required data */}
+              <FormField
+                control={form.control}
+                name="groupName"
+                render={({ field }) => <input type="hidden" {...field} />}
+              />
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => <input type="hidden" {...field} />}
+              />
+
+              <FormField
+                control={form.control}
+                name="ageType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Age Condition</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select condition" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="UNDER">Under</SelectItem>
+                        <SelectItem value="ABOVE">Above</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="age"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Age Limit</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 18" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingGroup(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateGroupMutation.isPending}>
+                  {updateGroupMutation.isPending && (
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
