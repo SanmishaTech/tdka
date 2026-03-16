@@ -53,14 +53,32 @@ const extractErrorMessage = (error: any): string => {
   return message;
 };
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("authToken");
+const setupInterceptors = (instance: any) => {
+  instance.interceptors.request.use((config: any) => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+  instance.interceptors.response.use(
+    (response: any) => response,
+    (error: any) => {
+      if (error.response?.status === 401) {
+        localStorage.removeItem("authToken");
+        if (window.location.pathname !== "/") {
+          window.location.href = "/";
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+};
+
+setupInterceptors(api);
+
+
 
 export const get = async (url: string, params?: any, config?: any) => {
   try {
@@ -167,14 +185,8 @@ export const postupload = async (
       baseURL: backendUrl,
     });
 
-    // Add authentication token
-    uploadInstance.interceptors.request.use((config) => {
-      const token = localStorage.getItem("authToken");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    });
+    // Add authentication and 401 handling
+    setupInterceptors(uploadInstance);
 
     const response = await uploadInstance.post(ensureApiPrefix(url), formData, config);
     return response.data;
@@ -207,14 +219,8 @@ export const putupload = async (
       baseURL: backendUrl,
     });
 
-    // Add authentication token
-    uploadInstance.interceptors.request.use((config) => {
-      const token = localStorage.getItem("authToken");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    });
+    // Add authentication and 401 handling
+    setupInterceptors(uploadInstance);
 
     const response = await uploadInstance.put(ensureApiPrefix(url), formData, config);
     return response.data;

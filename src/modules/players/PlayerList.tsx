@@ -1024,6 +1024,7 @@ const PlayerList = () => {
                   <TableHead>Mobile</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Aadhar</TableHead>
+                  <TableHead>Region</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1111,6 +1112,9 @@ const PlayerList = () => {
                         ) : (
                           <Badge variant="outline" className="bg-amber-50 border-amber-200 text-amber-700">Unverified</Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {player.region?.regionName || player.club?.place?.region?.regionName || "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">

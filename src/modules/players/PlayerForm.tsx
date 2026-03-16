@@ -57,6 +57,7 @@ interface PlayerData {
   aadharVerified: boolean;
   isSuspended: boolean;
   clubId?: number | null;
+  regionId?: number | null;
   groups: Group[];
   createdAt: string;
   updatedAt: string;
@@ -80,6 +81,11 @@ interface Club {
       regionName?: string;
     };
   };
+}
+
+interface Region {
+  id: number;
+  regionName: string;
 }
 
 // Create schema for player form
@@ -125,6 +131,7 @@ const playerFormSchemaBase = z.object({
       message: "Mobile number can only contain digits",
     }),
   clubId: z.string().optional(),
+  regionId: z.string().min(1, "Region is required"),
   groupIds: z.array(z.string())
     .min(1, "At least one group must be selected"),
 });
@@ -239,6 +246,7 @@ const PlayerForm = ({
       mobile: "",
       aadharNumber: "",
       clubId: "",
+      regionId: "",
       groupIds: [],
     },
   });
@@ -296,6 +304,15 @@ const PlayerForm = ({
     refetchOnWindowFocus: false,
   });
 
+  const { data: regionsData, isLoading: isLoadingRegions } = useQuery({
+    queryKey: ["regions"],
+    queryFn: async (): Promise<Region[]> => {
+      const response = await get("/regions");
+      return response.regions || response;
+    },
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
     if (typeof playerAge !== "number") return;
     if (!Array.isArray(groupsData) || groupsData.length === 0) return;
@@ -341,6 +358,11 @@ const PlayerForm = ({
       form.setValue("aadharNumber", playerData.aadharNumber || "");
       if (isAdmin) {
         form.setValue("clubId", playerData.clubId ? String(playerData.clubId) : "");
+      }
+      if (playerData.regionId !== undefined && playerData.regionId !== null) {
+        form.setValue("regionId", String(playerData.regionId));
+      } else {
+        form.setValue("regionId", "");
       }
 
       // Set group IDs
@@ -456,6 +478,7 @@ const PlayerForm = ({
         formData.append('address', data.address);
         formData.append('mobile', data.mobile);
         formData.append('aadharNumber', data.aadharNumber!);
+        if (data.regionId) formData.append('regionId', data.regionId);
         if (isAdmin && data.clubId) formData.append('clubId', data.clubId);
         formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
         if (profileImageFile) formData.append('profileImage', profileImageFile);
@@ -474,6 +497,7 @@ const PlayerForm = ({
           address: data.address,
           mobile: data.mobile,
           aadharNumber: data.aadharNumber,
+          regionId: data.regionId ? parseInt(data.regionId) : null,
           ...(isAdmin && data.clubId ? { clubId: parseInt(data.clubId) } : {}),
           groupIds: data.groupIds.map(id => parseInt(id))
         };
@@ -520,6 +544,7 @@ const PlayerForm = ({
         formData.append('address', data.address);
         formData.append('mobile', data.mobile);
         formData.append('aadharNumber', data.aadharNumber || '');
+        if (data.regionId) formData.append('regionId', data.regionId);
         if (isAdmin && data.clubId) formData.append('clubId', data.clubId);
         formData.append('groupIds', JSON.stringify(data.groupIds.map(id => parseInt(id))));
 
@@ -543,6 +568,7 @@ const PlayerForm = ({
           address: data.address,
           mobile: data.mobile,
           aadharNumber: data.aadharNumber || null,
+          regionId: data.regionId ? parseInt(data.regionId) : null,
           ...(isAdmin && data.clubId ? { clubId: parseInt(data.clubId) } : {}),
           groupIds: data.groupIds.map(id => parseInt(id))
         };
@@ -1156,25 +1182,56 @@ const PlayerForm = ({
                   </div>
                 )}
 
-                {/* Address Field */}
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address (As per Aadhar) <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Enter address"
-                          {...field}
-                          disabled={isFormLoading || aadharVerified}
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Address and Region Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address (As per Aadhar) <span className="text-red-500">*</span></FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Enter address"
+                            {...field}
+                            disabled={isFormLoading || aadharVerified}
+                            rows={3}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="regionId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Region <span className="text-red-500">*</span></FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={isFormLoading || aadharVerified || isLoadingRegions}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={isLoadingRegions ? "Loading regions..." : "Select Region"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(regionsData || []).map((region) => (
+                              <SelectItem key={region.id} value={region.id.toString()}>
+                                {region.regionName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               {/* Groups Section */}
