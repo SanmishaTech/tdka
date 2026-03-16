@@ -32,7 +32,8 @@ import {
   PlusCircle,
   Upload,
   Download,
-  SlidersHorizontal
+  SlidersHorizontal,
+  FileText
 } from "lucide-react";
 import {
   AlertDialog,
@@ -206,6 +207,19 @@ const ClubList = () => {
       toast.error(error.message || "Failed to delete club");
     },
   });
+
+  const handleViewClubPDF = async (club: any) => {
+    try {
+      const res = await get(`/clubs/${club.id}/pdf`, undefined, { responseType: "blob" });
+      const blob = res.data as Blob;
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      // Note: We don't revokeObjectURL immediately because it would break the view in the new tab
+      // The browser will typically handle cleanup when the tab is closed, or we'd need a more complex way to track it.
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to view PDF");
+    }
+  };
 
   // Handle search input
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -480,6 +494,15 @@ const ClubList = () => {
                           >
                             <PenSquare className="h-4 w-4" />
                             <span className="sr-only">Edit</span>
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewClubPDF(club)}
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span className="sr-only">View PDF</span>
                           </Button>
 
                           <AlertDialog>
